@@ -80,14 +80,14 @@ pub struct AssetIndex {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VersionInfoDownloads {
-    pub client: ClientMappingsClass,
-    pub client_mappings: ClientMappingsClass,
-    pub server: ClientMappingsClass,
-    pub server_mappings: ClientMappingsClass,
+    pub client: MappingsClass,
+    pub client_mappings: MappingsClass,
+    pub server: MappingsClass,
+    pub server_mappings: MappingsClass,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ClientMappingsClass {
+pub struct MappingsClass {
     pub sha1: String,
     pub size: i64,
     pub url: String,
@@ -112,22 +112,22 @@ pub struct Library {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LibraryDownloads {
-    pub artifact: ClientMappingsClass,
+    pub artifact: MappingsClass,
     pub classifiers: Option<Classifiers>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Classifiers {
-    pub javadoc: Option<ClientMappingsClass>,
+    pub javadoc: Option<MappingsClass>,
     #[serde(rename = "natives-linux")]
-    pub natives_linux: Option<ClientMappingsClass>,
+    pub natives_linux: Option<MappingsClass>,
     #[serde(rename = "natives-macos")]
-    pub natives_macos: Option<ClientMappingsClass>,
+    pub natives_macos: Option<MappingsClass>,
     #[serde(rename = "natives-windows")]
-    pub natives_windows: Option<ClientMappingsClass>,
-    pub sources: Option<ClientMappingsClass>,
+    pub natives_windows: Option<MappingsClass>,
+    pub sources: Option<MappingsClass>,
     #[serde(rename = "natives-osx")]
-    pub natives_osx: Option<ClientMappingsClass>,
+    pub natives_osx: Option<MappingsClass>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
