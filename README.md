@@ -2,6 +2,5 @@
 
 ## A plug-and-play rust minecraft launcher
 
-This is meant to be a structural launcher where all you need is a struct, some input, and directories.
-You don't build the launcher, download assets from the built, launcher, and then some other stuff.
-All you do is create an asset folder, get the version manifest and start a download.
+This is meant to be a low-level structural launcher were everything is done seperately.
+You don't launch and let it download the assets. You first downlaod the assets and then launch.
