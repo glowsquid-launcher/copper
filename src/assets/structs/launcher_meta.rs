@@ -1,7 +1,7 @@
 use reqwest::Error;
 use serde::{Deserialize, Serialize};
 
-use super::versionmanifest::VersionManifest;
+use super::version_manifest::VersionManifest;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LauncherMeta {

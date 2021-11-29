@@ -1,2 +1,2 @@
-pub mod launchermeta;
-pub mod versionmanifest;
+pub mod launcher_meta;
+pub mod version_manifest;
