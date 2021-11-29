@@ -36,7 +36,11 @@ impl VersionManifest {
         todo!()
     }
 
-    pub async fn download_jar() -> Result<(), Error> {
+    pub async fn download_client_jar() -> Result<(), Error> {
+        todo!()
+    }
+
+    pub async fn download_server_jar() -> Result<(), Error> {
         todo!()
     }
 }
