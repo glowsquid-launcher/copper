@@ -1,3 +1,5 @@
+use std::fmt::Error;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -23,6 +25,20 @@ pub struct VersionManifest {
     pub time: String,
     #[serde(rename = "type")]
     pub version_info_type: String,
+}
+
+impl VersionManifest {
+    pub async fn download_assets() -> Result<(), Error> {
+        todo!()
+    }
+
+    pub async fn download_libraries() -> Result<(), Error> {
+        todo!()
+    }
+
+    pub async fn download_jar() -> Result<(), Error> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
