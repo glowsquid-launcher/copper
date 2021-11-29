@@ -204,7 +204,7 @@ pub enum Name {
 mod tests {
     #[tokio::test]
     async fn can_download_and_deserialize() {
-        use crate::downloading::structs::versionmanifest::VersionManifest;
+        use crate::assets::structs::versionmanifest::VersionManifest;
         use serde_json::Value;
         let server_url = "https://launchermeta.mojang.com/v1/packages/59734133c4768dd79fa3c9b7a7650a713a8d294a/1.17.1.json";
 
