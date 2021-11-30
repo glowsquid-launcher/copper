@@ -1,4 +1,4 @@
-use std::fmt::Error;
+use std::error::Error;
 
 use serde::{Deserialize, Serialize};
 
@@ -28,23 +28,26 @@ pub struct VersionManifest {
 }
 
 impl VersionManifest {
-    pub async fn save_manifest_json(save_path: &str) -> Result<(), Error> {
+    pub async fn save_manifest_json(save_path: &str) -> Result<(), Box<dyn Error>> {
         todo!()
     }
 
-    pub async fn asset_index() -> Result<(), Error> {
+    pub async fn asset_index(&self) -> Result<AssetIndex, Box<dyn Error>> {
+        Ok(reqwest::get(&self.asset_index.url)
+            .await?
+            .json::<AssetIndex>()
+            .await?)
+    }
+
+    pub async fn download_libraries(save_path: &str) -> Result<(), Box<dyn Error>> {
         todo!()
     }
 
-    pub async fn download_libraries(save_path: &str) -> Result<(), Error> {
+    pub async fn download_client_jar(save_path: &str) -> Result<(), Box<dyn Error>> {
         todo!()
     }
 
-    pub async fn download_client_jar(save_path: &str) -> Result<(), Error> {
-        todo!()
-    }
-
-    pub async fn download_server_jar(save_path: &str) -> Result<(), Error> {
+    pub async fn download_server_jar(save_path: &str) -> Result<(), Box<dyn Error>> {
         todo!()
     }
 }
