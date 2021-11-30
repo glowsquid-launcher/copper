@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, io::Write};
 
 use serde::{Deserialize, Serialize};
 
@@ -28,8 +28,13 @@ pub struct VersionManifest {
 }
 
 impl VersionManifest {
-    pub async fn save_manifest_json(save_path: &str) -> Result<(), Box<dyn Error>> {
-        todo!()
+    pub fn save_manifest_json(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+        let json = serde_json::to_string(self)?;
+
+        let mut file = std::fs::File::create(save_path)?;
+        file.write(json.as_bytes())?;
+
+        Ok(())
     }
 
     pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, Box<dyn Error>> {
@@ -250,5 +255,28 @@ mod tests {
             .unwrap();
 
         assert!(response.id == response_value["id"]);
+    }
+
+    #[tokio::test]
+    async fn can_save() {
+        use crate::assets::structs::version_manifest::VersionManifest;
+        let server_url = "https://launchermeta.mojang.com/v1/packages/59734133c4768dd79fa3c9b7a7650a713a8d294a/1.17.1.json";
+
+        let response = reqwest::get(server_url)
+            .await
+            .unwrap()
+            .json::<VersionManifest>()
+            .await
+            .unwrap();
+
+        response
+            .save_manifest_json(
+                &(std::env::current_dir()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+                    + "/tests-dir/test.json"),
+            )
+            .unwrap();
     }
 }
