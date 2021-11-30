@@ -32,10 +32,10 @@ impl VersionManifest {
         todo!()
     }
 
-    pub async fn asset_index(&self) -> Result<AssetIndex, Box<dyn Error>> {
+    pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, Box<dyn Error>> {
         Ok(reqwest::get(&self.asset_index.url)
             .await?
-            .json::<AssetIndex>()
+            .json::<super::asset_index::AssetIndex>()
             .await?)
     }
 
