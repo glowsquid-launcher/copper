@@ -28,19 +28,23 @@ pub struct VersionManifest {
 }
 
 impl VersionManifest {
-    pub async fn download_assets() -> Result<(), Error> {
+    pub async fn save_manifest_json(save_path: &str) -> Result<(), Error> {
         todo!()
     }
 
-    pub async fn download_libraries() -> Result<(), Error> {
+    pub async fn asset_index() -> Result<(), Error> {
         todo!()
     }
 
-    pub async fn download_client_jar() -> Result<(), Error> {
+    pub async fn download_libraries(save_path: &str) -> Result<(), Error> {
         todo!()
     }
 
-    pub async fn download_server_jar() -> Result<(), Error> {
+    pub async fn download_client_jar(save_path: &str) -> Result<(), Error> {
+        todo!()
+    }
+
+    pub async fn download_server_jar(save_path: &str) -> Result<(), Error> {
         todo!()
     }
 }
