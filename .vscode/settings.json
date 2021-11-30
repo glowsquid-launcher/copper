@@ -1,6 +1,7 @@
 {
     "conventionalCommits.scopes": [
         "deps",
-        "assets"
+        "assets",
+        "standalone"
     ]
 }

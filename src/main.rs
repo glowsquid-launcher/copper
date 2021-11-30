@@ -1,3 +1,3 @@
 fn main() {
-    println!("No standalone for now:tm:");
+    println!("No standalone for now™️. Check out glowsquid");
 }
