@@ -44,7 +44,25 @@ impl VersionManifest {
             .await?)
     }
 
-    pub async fn download_libraries(save_path: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn download_libraries(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+        let mut tasks = Vec::new();
+        for library in &self.libraries {
+            if library.rules.is_some() {
+                let rules = library.rules.as_ref().unwrap();
+
+                for rule in rules {
+                    match rule.action {
+                        Action::Allow => {}
+                        Action::Disallow => {}
+                    }
+                }
+            }
+
+            let mut file_name = library.name.clone();
+
+            tasks.push(tokio::spawn(async move {}));
+        }
+
         todo!()
     }
 
@@ -231,6 +249,8 @@ pub enum Action {
 pub enum Name {
     #[serde(rename = "osx")]
     Osx,
+    #[serde(rename = "linux")]
+    Linux,
 }
 
 mod tests {
