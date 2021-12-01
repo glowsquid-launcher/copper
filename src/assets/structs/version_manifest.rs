@@ -1,4 +1,4 @@
-use std::{error::Error, io::Write};
+use std::{error::Error, fs::create_dir_all, io::Write, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -46,24 +46,73 @@ impl VersionManifest {
 
     pub async fn download_libraries(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
         let mut tasks = Vec::new();
-        for library in &self.libraries {
+        'library_loop: for library in &self.libraries {
             if library.rules.is_some() {
                 let rules = library.rules.as_ref().unwrap();
 
                 for rule in rules {
                     match rule.action {
-                        Action::Allow => {}
-                        Action::Disallow => {}
+                        Action::Allow => {
+                            if let Some(rule) = &rule.os {
+                                if match rule.name {
+                                    Name::Linux => cfg!(target_os = "linux"),
+                                    Name::Osx => cfg!(target_os = "macos"),
+                                } {
+                                    // continue going through the rules
+                                    continue;
+                                } else {
+                                    // end the loop because this library is not for this OS
+                                    continue 'library_loop;
+                                }
+                            } else {
+                                // continue as this rule does not have an OS
+                                continue;
+                            }
+                        }
+                        Action::Disallow => {
+                            if let Some(rule) = &rule.os {
+                                if match rule.name {
+                                    Name::Linux => cfg!(target_os = "linux"),
+                                    Name::Osx => cfg!(target_os = "macos"),
+                                } {
+                                    // end the loop because this library is not for this OS
+                                    continue 'library_loop;
+                                } else {
+                                    // continue going through the rules
+                                    continue;
+                                }
+                            } else {
+                                // end the loop because this library is not allowed for any OS
+                                // (mojank moment)
+                                continue 'library_loop;
+                            }
+                        }
                     }
                 }
             }
 
-            let mut file_name = library.name.clone();
+            // if we get here, then the library is allowed to be downloaded
+            let url = library.downloads.artifact.url.clone();
+            let subpath = library.downloads.artifact.path.as_ref().unwrap();
+            let full_path = PathBuf::from(save_path)
+                .join(subpath)
+                .to_string_lossy()
+                .to_string();
+            let mut path_without_last_vec = full_path.split("/").collect::<Vec<&str>>();
+            path_without_last_vec.pop();
+            let path_without_last = path_without_last_vec.join("/");
 
-            tasks.push(tokio::spawn(async move {}));
+            tasks.push(tokio::spawn(async move {
+                let mut response = reqwest::get(url).await.unwrap().bytes().await.unwrap();
+                create_dir_all(path_without_last).unwrap();
+                let mut file = std::fs::File::create(full_path).unwrap();
+                file.write(&mut response).unwrap();
+            }));
         }
 
-        todo!()
+        Ok(for task in tasks {
+            task.await?;
+        })
     }
 
     pub async fn download_client_jar(save_path: &str) -> Result<(), Box<dyn Error>> {
@@ -275,6 +324,30 @@ mod tests {
             .unwrap();
 
         assert!(response.id == response_value["id"]);
+    }
+
+    #[tokio::test]
+    async fn can_save_libraries() {
+        use crate::assets::structs::version_manifest::VersionManifest;
+        let server_url = "https://launchermeta.mojang.com/v1/packages/59734133c4768dd79fa3c9b7a7650a713a8d294a/1.17.1.json";
+
+        let response = reqwest::get(server_url)
+            .await
+            .unwrap()
+            .json::<VersionManifest>()
+            .await
+            .unwrap();
+
+        response
+            .download_libraries(
+                &(std::env::current_dir()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string()
+                    + "/tests-dir"),
+            )
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
