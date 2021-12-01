@@ -11,6 +11,8 @@ impl AssetIndex {
     /// The save path should be /assets/objects
     pub async fn save_assets(&self, save_path: String) -> Result<(), Box<dyn Error>> {
         let mut tasks = Vec::new();
+
+        // create a final path and return it along with the url
         let path_and_url: HashMap<String, String> = self
             .objects
             .iter()
@@ -25,21 +27,29 @@ impl AssetIndex {
             })
             .collect();
 
+        // loop over the paths + urls
         for (path, url) in path_and_url.into_iter() {
+            // hours wasted trying to remove clone: 3 hours
             let save_path_clone = save_path.clone();
+
+            // because the path includes the file name, we need to remove the last part
             let mut path_without_last_vec = path.split("/").collect::<Vec<&str>>();
             path_without_last_vec.pop();
             let path_without_last = path_without_last_vec.join("/");
 
             tasks.push(tokio::spawn(async move {
                 let mut response = reqwest::get(url).await.unwrap().bytes().await.unwrap();
+                // create the directories if they don't exist
                 create_dir_all(format!("{}/{}", &save_path_clone, &path_without_last)).unwrap();
+
+                // create the file and write the contents
                 let mut file =
                     std::fs::File::create(format!("{}/{}", save_path_clone, &path)).unwrap();
                 file.write(&mut response).unwrap();
             }))
         }
 
+        // wait for all the tasks to finish
         for task_handle in tasks {
             task_handle.await.unwrap()
         }

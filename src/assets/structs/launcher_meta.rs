@@ -16,6 +16,7 @@ pub struct Latest {
 
 impl Latest {
     pub fn version_for_release<'a>(&self, launcher_meta: &'a LauncherMeta) -> &'a Version {
+        // get the latest release and find its version
         launcher_meta
             .versions
             .iter()
@@ -25,6 +26,7 @@ impl Latest {
     }
 
     pub fn version_for_snapshot<'a>(&self, launcher_meta: &'a LauncherMeta) -> &'a Version {
+        // get the latest snapshot and find its version
         launcher_meta
             .versions
             .iter()
@@ -47,6 +49,7 @@ pub struct Version {
 
 impl Version {
     pub async fn version_manifest(&self) -> Result<VersionManifest, Error> {
+        // download the version manifest and return a parsed version manifest
         reqwest::get(&self.url)
             .await?
             .json::<VersionManifest>()

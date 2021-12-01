@@ -29,8 +29,10 @@ pub struct VersionManifest {
 
 impl VersionManifest {
     pub fn save_manifest_json(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+        // serialize the struct to a json string
         let json = serde_json::to_string(self)?;
 
+        // create file and save it
         let mut file = std::fs::File::create(save_path)?;
         file.write(json.as_bytes())?;
 
@@ -38,6 +40,7 @@ impl VersionManifest {
     }
 
     pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, Box<dyn Error>> {
+        // Get json and return it
         Ok(reqwest::get(&self.asset_index.url)
             .await?
             .json::<super::asset_index::AssetIndex>()
@@ -46,7 +49,9 @@ impl VersionManifest {
 
     pub async fn download_libraries(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
         let mut tasks = Vec::new();
+
         'library_loop: for library in &self.libraries {
+            // Check rules for the library to see if it should be downloaded
             if library.rules.is_some() {
                 let rules = library.rules.as_ref().unwrap();
 
@@ -94,25 +99,34 @@ impl VersionManifest {
             // if we get here, then the library is allowed to be downloaded
             let url = library.downloads.artifact.url.clone();
             let subpath = library.downloads.artifact.path.as_ref().unwrap();
+            // The full path includes the file name
             let full_path = PathBuf::from(save_path)
                 .join(subpath)
                 .to_string_lossy()
                 .to_string();
+
+            // remove the file name from the path
             let mut path_without_last_vec = full_path.split("/").collect::<Vec<&str>>();
             path_without_last_vec.pop();
             let path_without_last = path_without_last_vec.join("/");
 
             tasks.push(tokio::spawn(async move {
                 let mut response = reqwest::get(url).await.unwrap().bytes().await.unwrap();
+                // create directories if they don't exist
                 create_dir_all(path_without_last).unwrap();
+
+                // create the file and write the contents
                 let mut file = std::fs::File::create(full_path).unwrap();
                 file.write(&mut response).unwrap();
             }));
         }
 
-        Ok(for task in tasks {
+        // wait for all the tasks to finish
+        for task in tasks {
             task.await?;
-        })
+        }
+
+        Ok(())
     }
 
     pub async fn download_client_jar(save_path: &str) -> Result<(), Box<dyn Error>> {
