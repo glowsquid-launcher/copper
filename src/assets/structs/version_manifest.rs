@@ -1,6 +1,11 @@
-use std::{error::Error, fs::create_dir_all, io::Write, path::PathBuf};
+use std::{error::Error, io::Write, path::PathBuf, time::Duration};
 
+use futures::future::join_all;
+use indicatif::ProgressBar;
+use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
+
+use crate::util::create_download_task;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VersionManifest {
@@ -48,83 +53,50 @@ impl VersionManifest {
     }
 
     pub async fn download_libraries(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
-        let mut tasks = Vec::new();
+        let client = ClientBuilder::new()
+            .connection_verbose(true)
+            .pool_idle_timeout(Some(Duration::from_secs(600)))
+            .tcp_keepalive(Some(Duration::from_secs(30)))
+            .build()
+            .unwrap();
 
-        'library_loop: for library in &self.libraries {
+        let mut tasks = Vec::new();
+        let pb = ProgressBar::new(0);
+
+        for library in &self.libraries {
             // Check rules for the library to see if it should be downloaded
             if library.rules.is_some() {
                 let rules = library.rules.as_ref().unwrap();
 
-                for rule in rules {
-                    match rule.action {
-                        Action::Allow => {
-                            if let Some(rule) = &rule.os {
-                                if match rule.name {
-                                    Name::Linux => cfg!(target_os = "linux"),
-                                    Name::Osx => cfg!(target_os = "macos"),
-                                } {
-                                    // continue going through the rules
-                                    continue;
-                                } else {
-                                    // end the loop because this library is not for this OS
-                                    continue 'library_loop;
-                                }
-                            } else {
-                                // continue as this rule does not have an OS
-                                continue;
-                            }
-                        }
-                        Action::Disallow => {
-                            if let Some(rule) = &rule.os {
-                                if match rule.name {
-                                    Name::Linux => cfg!(target_os = "linux"),
-                                    Name::Osx => cfg!(target_os = "macos"),
-                                } {
-                                    // end the loop because this library is not for this OS
-                                    continue 'library_loop;
-                                } else {
-                                    // continue going through the rules
-                                    continue;
-                                }
-                            } else {
-                                // end the loop because this library is not allowed for any OS
-                                // (mojank moment)
-                                continue 'library_loop;
-                            }
-                        }
-                    }
+                // if the rules are not satisfied, skip the library
+                if !VersionManifest::check_rules(rules) {
+                    continue;
                 }
             }
 
             // if we get here, then the library is allowed to be downloaded
             let url = library.downloads.artifact.url.clone();
             let subpath = library.downloads.artifact.path.as_ref().unwrap();
+
             // The full path includes the file name
             let full_path = PathBuf::from(save_path)
                 .join(subpath)
                 .to_string_lossy()
                 .to_string();
 
-            // remove the file name from the path
-            let mut path_without_last_vec = full_path.split("/").collect::<Vec<&str>>();
-            path_without_last_vec.pop();
-            let path_without_last = path_without_last_vec.join("/");
-
-            tasks.push(tokio::spawn(async move {
-                let mut response = reqwest::get(url).await.unwrap().bytes().await.unwrap();
-                // create directories if they don't exist
-                create_dir_all(path_without_last).unwrap();
-
-                // create the file and write the contents
-                let mut file = std::fs::File::create(full_path).unwrap();
-                file.write(&mut response).unwrap();
-            }));
+            tasks.push(create_download_task(
+                url,
+                full_path,
+                pb.clone(),
+                client.clone(),
+            ));
         }
 
         // wait for all the tasks to finish
-        for task in tasks {
-            task.await?;
-        }
+        let amount_of_tasks = tasks.len();
+        pb.set_length(amount_of_tasks.try_into().unwrap());
+
+        join_all(tasks).await;
 
         Ok(())
     }
@@ -135,6 +107,49 @@ impl VersionManifest {
 
     pub async fn download_server_jar(save_path: &str) -> Result<(), Box<dyn Error>> {
         todo!()
+    }
+
+    fn check_rules(rules: &Vec<LibraryRule>) -> bool {
+        for rule in rules {
+            match rule.action {
+                Action::Allow => {
+                    if let Some(os) = &rule.os {
+                        if match os.name {
+                            Name::Linux => cfg!(target_os = "linux"),
+                            Name::Osx => cfg!(target_os = "macos"),
+                        } {
+                            // continue going through the rules
+                            continue;
+                        } else {
+                            // continue the loop because this library is not for this OS
+                            return false;
+                        }
+                    } else {
+                        // continue as this rule does not have an OS
+                        continue;
+                    }
+                }
+                Action::Disallow => {
+                    if let Some(os) = &rule.os {
+                        if match os.name {
+                            Name::Linux => cfg!(target_os = "linux"),
+                            Name::Osx => cfg!(target_os = "macos"),
+                        } {
+                            return false;
+                        } else {
+                            // continue going through the rules
+                            continue;
+                        }
+                    } else {
+                        // continue the loop because this library is not allowed for any OS
+                        // (mojank moment)
+                        return false;
+                    }
+                }
+            }
+        }
+
+        true
     }
 }
 

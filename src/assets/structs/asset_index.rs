@@ -1,6 +1,11 @@
-use std::{collections::HashMap, error::Error, fs::create_dir_all, io::Write};
+use std::{collections::HashMap, error::Error, time::Duration};
 
+use futures::future::join_all;
+use indicatif::ProgressBar;
+use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
+
+use crate::util::create_download_task;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AssetIndex {
@@ -10,7 +15,16 @@ pub struct AssetIndex {
 impl AssetIndex {
     /// The save path should be /assets/objects
     pub async fn save_assets(&self, save_path: String) -> Result<(), Box<dyn Error>> {
+        let client = ClientBuilder::new()
+            .connection_verbose(true)
+            .pool_idle_timeout(Some(Duration::from_secs(600)))
+            .tcp_keepalive(Some(Duration::from_secs(30)))
+            .build()
+            .unwrap();
+
         let mut tasks = Vec::new();
+
+        let pb = ProgressBar::new(0);
 
         // create a final path and return it along with the url
         let path_and_url: HashMap<String, String> = self
@@ -29,31 +43,24 @@ impl AssetIndex {
 
         // loop over the paths + urls
         for (path, url) in path_and_url.into_iter() {
-            // hours wasted trying to remove clone: 3 hours
-            let save_path_clone = save_path.clone();
-
             // because the path includes the file name, we need to remove the last part
-            let mut path_without_last_vec = path.split("/").collect::<Vec<&str>>();
-            path_without_last_vec.pop();
-            let path_without_last = path_without_last_vec.join("/");
-
-            tasks.push(tokio::spawn(async move {
-                let mut response = reqwest::get(url).await.unwrap().bytes().await.unwrap();
-                // create the directories if they don't exist
-                create_dir_all(format!("{}/{}", &save_path_clone, &path_without_last)).unwrap();
-
-                // create the file and write the contents
-                let mut file =
-                    std::fs::File::create(format!("{}/{}", save_path_clone, &path)).unwrap();
-                file.write(&mut response).unwrap();
-            }))
+            let full_path = format!("{}/{}", save_path, path);
+            tasks.push(create_download_task(
+                url,
+                full_path,
+                pb.clone(),
+                client.clone(),
+            ));
         }
+
+        let amount_of_tasks = tasks.len();
+        pb.set_length(amount_of_tasks.try_into().unwrap());
 
         // wait for all the tasks to finish
-        for task_handle in tasks {
-            task_handle.await.unwrap()
-        }
 
+        join_all(tasks).await;
+
+        println!("downloaded {} assets", amount_of_tasks);
         Ok(())
     }
 }
@@ -66,17 +73,9 @@ pub struct Object {
 
 mod tests {
     #[tokio::test]
-    async fn test_saving() {
+    async fn test_saving_assets() {
         use crate::assets::structs::launcher_meta::LauncherMeta;
         let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
-
-        println!(
-            "{}",
-            std::env::current_dir()
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-        );
 
         let response = reqwest::get(server_url)
             .await
