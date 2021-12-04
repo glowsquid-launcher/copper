@@ -87,9 +87,9 @@ impl VersionManifest {
             tasks.push(create_download_task(
                 url,
                 full_path,
-                pb.clone(),
-                client.clone(),
-            ));
+                Some(pb.clone()),
+                Some(client.clone()),
+            ))
         }
 
         // wait for all the tasks to finish
@@ -101,12 +101,20 @@ impl VersionManifest {
         Ok(())
     }
 
-    pub async fn download_client_jar(save_path: &str) -> Result<(), Box<dyn Error>> {
-        todo!()
+    pub async fn download_client_jar(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+        let url = self.downloads.client.url.clone();
+        let task = tokio::spawn(create_download_task(url, save_path.to_string(), None, None));
+        task.await??;
+
+        Ok(())
     }
 
-    pub async fn download_server_jar(save_path: &str) -> Result<(), Box<dyn Error>> {
-        todo!()
+    pub async fn download_server_jar(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+        let url = self.downloads.server.url.clone();
+        let task = tokio::spawn(create_download_task(url, save_path.to_string(), None, None));
+        task.await??;
+
+        Ok(())
     }
 
     fn check_rules(rules: &Vec<LibraryRule>) -> bool {

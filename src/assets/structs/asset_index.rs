@@ -48,8 +48,8 @@ impl AssetIndex {
             tasks.push(create_download_task(
                 url,
                 full_path,
-                pb.clone(),
-                client.clone(),
+                Some(pb.clone()),
+                Some(client.clone()),
             ));
         }
 
