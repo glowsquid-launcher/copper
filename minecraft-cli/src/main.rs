@@ -1,4 +1,6 @@
-use minecraft_rs::cli::{handle_args, Args};
+mod cli;
+
+use cli::{handle_args, Args};
 use std::error::Error;
 use structopt::StructOpt;
 

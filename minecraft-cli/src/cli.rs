@@ -1,8 +1,8 @@
 use std::{error::Error, path::PathBuf};
 use structopt::StructOpt;
 
-use crate::assets::structs::launcher_meta::LauncherMeta;
-use crate::util::DivPathBuf;
+use minecraft_rs::assets::structs::launcher_meta::LauncherMeta;
+use minecraft_rs::util::DivPathBuf;
 
 pub async fn handle_args(args: Args) -> Result<(), Box<dyn Error>> {
     match args {
