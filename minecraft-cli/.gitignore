@@ -1,3 +1,4 @@
 /target
 /tests-dir
 !/tests-dir/.gitkeep
+output.log

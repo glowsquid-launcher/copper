@@ -146,15 +146,18 @@ pub async fn handle_args(args: Args) -> Result<()> {
 
 #[derive(Debug, StructOpt)]
 pub enum Args {
-    /// download minecrafts dependencies
-    /// this includes assets, libraries, the client jar, the client manifest, the version manifest, and more
+    /// Download minecrafts dependencies.
+    ///
+    /// This includes assets, libraries, the client jar, the client manifest, the version manifest, and more
     DownloadDependencies {
-        /// The root .minecraft folder
-        /// this is where everything will be downloaded to
+        /// The root .minecraft folder.
+        ///
+        /// This is where everything will be downloaded to
         #[structopt(short, long)]
         root: String,
-        /// the minecraft version
-        /// this can be any minecraft version (including snapshot versions) and can be "latest" for the latest release
+        /// The minecraft version.
+        ///
+        /// This can be any minecraft version (including snapshot versions) and can be "latest" for the latest release
         #[structopt(short, long)]
         version: String,
     },
