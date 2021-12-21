@@ -1,45 +1,101 @@
-use std::{
-    fs::{create_dir_all, File},
-    io::Write,
-};
+use std::error::Error;
+use std::ops::{Deref, DerefMut, Div};
+use std::path::PathBuf;
+use std::time::Duration;
 
-use indicatif::ProgressBar;
-use reqwest::Client;
-use tokio::task::JoinHandle;
+use futures::stream::FuturesUnordered;
+use reqwest::{Client, ClientBuilder};
+use tokio::fs::create_dir_all;
+use tokio::io::AsyncWriteExt;
+use tokio::sync::watch::Receiver;
+use tokio::task::{self, JoinHandle};
 use tokio_retry::{strategy::FixedInterval, Retry};
 
 pub fn create_download_task(
     url: String,
-    final_path: String,
-    pb: Option<ProgressBar>,
+    final_path: PathBuf,
     client: Option<Client>,
-) -> JoinHandle<()> {
+) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
     tokio::spawn(async move {
-        let mut path_without_last_vec = final_path.split("/").collect::<Vec<&str>>();
+        let client = client
+            .clone()
+            .unwrap_or_else(|| Client::builder().build().unwrap());
+
+        let final_path_str = final_path.to_string_lossy().into_owned();
+        let mut path_without_last_vec = final_path_str.split("/").collect::<Vec<&str>>();
         path_without_last_vec.pop();
         let path_without_last = path_without_last_vec.join("/");
-        create_dir_all(&path_without_last).unwrap();
+        create_dir_all(&path_without_last).await?;
 
         // idk how to get rid of clone
         // hours wasted: 2
-        let action = || {
-            client
-                .clone()
-                .unwrap_or_else(|| Client::builder().build().unwrap())
-                .get(url.clone())
-                .send()
-        };
+        let action = || client.get(url.clone()).send();
 
         let retry_strategy = FixedInterval::from_millis(100).take(3);
 
-        let response = Retry::spawn(retry_strategy, action).await.unwrap();
+        let mut response = Retry::spawn(retry_strategy, action).await?;
 
-        let mut bytes = response.bytes().await.unwrap();
-        let mut file = File::create(final_path).unwrap();
-        file.write(&mut bytes).unwrap();
+        let mut file = tokio::fs::File::create(&final_path_str).await?;
 
-        if let Some(pb) = pb {
-            pb.inc(1);
+        while let Some(chunk) = response.chunk().await? {
+            file.write(&chunk).await?;
         }
+
+        Ok(())
     })
+}
+
+pub type FunkyFuturesThing =
+    FuturesUnordered<task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>;
+
+#[derive(Clone, Copy)]
+pub struct DownloadProgress {
+    pub total_size: u64,
+    pub finished: u64,
+}
+
+pub struct DownloadWatcher {
+    pub progress_watcher: Receiver<DownloadProgress>,
+    pub download_task: JoinHandle<()>,
+}
+
+pub fn create_client() -> Client {
+    ClientBuilder::new()
+        .connection_verbose(true)
+        .pool_idle_timeout(Some(Duration::from_secs(600)))
+        .tcp_keepalive(Some(Duration::from_secs(30)))
+        .build()
+        .unwrap()
+}
+
+pub struct DivPathBuf(pub PathBuf);
+
+impl Deref for DivPathBuf {
+    type Target = PathBuf;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for DivPathBuf {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Div<&str> for DivPathBuf {
+    type Output = DivPathBuf;
+
+    fn div(self, rhs: &str) -> Self::Output {
+        DivPathBuf(self.join(rhs))
+    }
+}
+
+impl Div<&str> for &DivPathBuf {
+    type Output = DivPathBuf;
+
+    fn div(self, rhs: &str) -> Self::Output {
+        DivPathBuf(self.join(rhs))
+    }
 }

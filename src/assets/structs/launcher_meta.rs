@@ -1,11 +1,23 @@
 use super::version_manifest::VersionManifest;
-use reqwest::Error;
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LauncherMeta {
     pub latest: Latest,
     pub versions: Vec<Version>,
+}
+
+impl LauncherMeta {
+    pub async fn download_meta() -> Result<Self, Box<dyn Error>> {
+        let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
+
+        Ok(reqwest::get(server_url)
+            .await
+            .unwrap()
+            .json::<LauncherMeta>()
+            .await?)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,12 +60,12 @@ pub struct Version {
 }
 
 impl Version {
-    pub async fn version_manifest(&self) -> Result<VersionManifest, Error> {
+    pub async fn version_manifest(&self) -> Result<VersionManifest, Box<dyn Error>> {
         // download the version manifest and return a parsed version manifest
-        reqwest::get(&self.url)
+        Ok(reqwest::get(&self.url)
             .await?
             .json::<VersionManifest>()
-            .await
+            .await?)
     }
 }
 
@@ -74,7 +86,7 @@ pub(crate) mod tests {
     pub async fn can_download_and_deserialize() {
         use super::LauncherMeta;
         use serde_json::Value;
-        let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+        let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
 
         let response = reqwest::get(server_url)
             .await
@@ -90,6 +102,6 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        assert!(response.latest.release == response_value["latest"]["release"]);
+        assert_eq!(response.latest.release, response_value["latest"]["release"]);
     }
 }

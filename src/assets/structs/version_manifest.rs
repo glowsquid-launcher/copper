@@ -1,11 +1,15 @@
-use std::{error::Error, io::Write, path::PathBuf, time::Duration};
+use std::{error::Error, fs::create_dir_all, io::Write, path::PathBuf};
 
-use futures::future::join_all;
-use indicatif::ProgressBar;
-use reqwest::ClientBuilder;
+use futures::{stream::FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
+use tokio::{
+    sync::watch::{self, Sender},
+    task,
+};
 
-use crate::util::create_download_task;
+use crate::util::{
+    create_client, create_download_task, DownloadProgress, DownloadWatcher, FunkyFuturesThing,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VersionManifest {
@@ -33,9 +37,12 @@ pub struct VersionManifest {
 }
 
 impl VersionManifest {
-    pub fn save_manifest_json(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+    pub fn save_manifest_json(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
         // serialize the struct to a json string
         let json = serde_json::to_string(self)?;
+        create_dir_all(save_path.parent().ok_or(
+            "save_path doesnt have a parent. Make sure you include the {version}.json bit at the end",
+        )?)?;
 
         // create file and save it
         let mut file = std::fs::File::create(save_path)?;
@@ -52,22 +59,14 @@ impl VersionManifest {
             .await?)
     }
 
-    pub async fn download_libraries(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
-        let client = ClientBuilder::new()
-            .connection_verbose(true)
-            .pool_idle_timeout(Some(Duration::from_secs(600)))
-            .tcp_keepalive(Some(Duration::from_secs(30)))
-            .build()
-            .unwrap();
+    pub async fn download_libraries(&self, save_path: PathBuf) -> FunkyFuturesThing {
+        let client = create_client();
 
-        let mut tasks = Vec::new();
-        let pb = ProgressBar::new(0);
+        let tasks = FuturesUnordered::new();
 
         for library in &self.libraries {
             // Check rules for the library to see if it should be downloaded
-            if library.rules.is_some() {
-                let rules = library.rules.as_ref().unwrap();
-
+            if let Some(rules) = &library.rules {
                 // if the rules are not satisfied, skip the library
                 if !VersionManifest::check_rules(rules) {
                     continue;
@@ -76,43 +75,74 @@ impl VersionManifest {
 
             // if we get here, then the library is allowed to be downloaded
             let url = library.downloads.artifact.url.clone();
-            let subpath = library.downloads.artifact.path.as_ref().unwrap();
+            let sub_path = library
+                .downloads
+                .artifact
+                .path
+                .as_ref()
+                .ok_or("library doesnt have a path. Please report this bug to https://github.com/glowsquid-launcher/glowsquid/issues")
+                .unwrap();
 
             // The full path includes the file name
-            let full_path = PathBuf::from(save_path)
-                .join(subpath)
-                .to_string_lossy()
-                .to_string();
+            let full_path = save_path.join(sub_path);
 
-            tasks.push(create_download_task(
-                url,
-                full_path,
-                Some(pb.clone()),
-                Some(client.clone()),
-            ))
+            tasks.push(create_download_task(url, full_path, Some(client.clone())))
         }
 
-        // wait for all the tasks to finish
-        let amount_of_tasks = tasks.len();
-        pb.set_length(amount_of_tasks.try_into().unwrap());
-
-        join_all(tasks).await;
-
-        Ok(())
+        tasks
     }
 
-    pub async fn download_client_jar(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+    async fn run_downloads(
+        mut tasks: FunkyFuturesThing,
+        progress_sender: Sender<DownloadProgress>,
+    ) {
+        let total = tasks.len();
+        let mut finished = 0;
+
+        while let Some(_) = tasks.next().await {
+            finished += 1;
+            let _ = progress_sender.send(DownloadProgress {
+                total_size: total as u64,
+                finished,
+            });
+        }
+    }
+
+    pub async fn start_download_libraries(&self, save_path: PathBuf) -> DownloadWatcher {
+        let (progress_sender, progress_receiver) = watch::channel(DownloadProgress {
+            finished: 0,
+            total_size: 0,
+        });
+
+        let tasks = self.download_libraries(save_path).await;
+        let download_task = task::spawn(Self::run_downloads(tasks, progress_sender));
+
+        DownloadWatcher {
+            progress_watcher: progress_receiver,
+            download_task,
+        }
+    }
+
+    pub async fn download_client_jar(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
         let url = self.downloads.client.url.clone();
-        let task = tokio::spawn(create_download_task(url, save_path.to_string(), None, None));
-        task.await??;
+        let task = tokio::spawn(create_download_task(url, save_path, None));
+
+        // the ultimate jank
+        if let Err(e) = task.await?? {
+            return Err(e);
+        };
 
         Ok(())
     }
 
-    pub async fn download_server_jar(&self, save_path: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn download_server_jar(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
         let url = self.downloads.server.url.clone();
-        let task = tokio::spawn(create_download_task(url, save_path.to_string(), None, None));
-        task.await??;
+        let task = tokio::spawn(create_download_task(url, save_path, None));
+
+        // the ultimate jank
+        if let Err(e) = task.await?? {
+            return Err(e);
+        };
 
         Ok(())
     }
@@ -360,7 +390,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(response.id == response_value["id"]);
+        assert_eq!(response.id, response_value["id"]);
     }
 
     #[tokio::test]
@@ -375,20 +405,22 @@ mod tests {
             .await
             .unwrap();
 
-        response
-            .download_libraries(
-                &(std::env::current_dir()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string()
-                    + "/tests-dir"),
-            )
-            .await
-            .unwrap();
+        let path = std::env::current_dir()
+            .unwrap()
+            .join("tests-dir")
+            .join("1.17.1/libraries");
+
+        let mut watcher = response.start_download_libraries(path).await;
+
+        while let Ok(_) = watcher.progress_watcher.changed().await {
+            let progress = *watcher.progress_watcher.borrow();
+            println!("{}/{}", progress.finished, progress.total_size); //derive copy on the DownloadProgress
+        }
+        watcher.download_task.await.unwrap();
     }
 
     #[tokio::test]
-    async fn can_save() {
+    async fn can_save_manifest() {
         use crate::assets::structs::version_manifest::VersionManifest;
         let server_url = "https://launchermeta.mojang.com/v1/packages/59734133c4768dd79fa3c9b7a7650a713a8d294a/1.17.1.json";
 
@@ -401,11 +433,10 @@ mod tests {
 
         response
             .save_manifest_json(
-                &(std::env::current_dir()
+                std::env::current_dir()
                     .unwrap()
-                    .to_string_lossy()
-                    .to_string()
-                    + "/tests-dir/test.json"),
+                    .join("tests-dir")
+                    .join("test.json"),
             )
             .unwrap();
     }

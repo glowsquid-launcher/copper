@@ -1,33 +1,10 @@
-use minecraft_rs::assets::structs::launcher_meta::LauncherMeta;
+use minecraft_rs::cli::{handle_args, Args};
+use std::error::Error;
+use structopt::StructOpt;
 
 #[tokio::main]
-async fn main() {
-    println!("No standalone for now™️. Check out glowsquid");
-    let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args = Args::from_args();
 
-    let response = reqwest::get(server_url)
-        .await
-        .unwrap()
-        .json::<LauncherMeta>()
-        .await
-        .unwrap();
-
-    response
-        .latest
-        .version_for_release(&response)
-        .version_manifest()
-        .await
-        .unwrap()
-        .asset_index()
-        .await
-        .unwrap()
-        .save_assets(
-            std::env::current_dir()
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-                + "/tests-dir",
-        )
-        .await
-        .unwrap();
+    handle_args(args).await
 }
