@@ -46,7 +46,7 @@ pub async fn handle_args(args: Args) -> Result<()> {
 
             let bars = MultiProgress::new();
             let style = ProgressStyle::default_bar()
-                .template("[{elapsed_precise}] [{bar:40.cyan/blue}] {pos:>7}/{len:7} {msg}");
+                .template("[{elapsed_precise}] [{bar:40.green/cyan}] {pos:>7}/{len:7} {msg}");
 
             let libraries_bar = bars.add(ProgressBar::new(1000));
             let assets_bar = bars.add(ProgressBar::new(1000));
@@ -54,8 +54,8 @@ pub async fn handle_args(args: Args) -> Result<()> {
             libraries_bar.set_style(style.clone());
             assets_bar.set_style(style.clone());
 
-            libraries_bar.set_message("downloading libraries");
-            assets_bar.set_message("downloading assets");
+            libraries_bar.set_message("Downloading libraries");
+            assets_bar.set_message("Downloading assets");
 
             let mut libraries_watcher = version
                 .start_download_libraries(libraries_path.to_path_buf())
@@ -86,7 +86,7 @@ pub async fn handle_args(args: Args) -> Result<()> {
                 libraries_watcher.download_task.await.map_err(|_err| ())?;
                 libraries_bar
                     .clone()
-                    .finish_with_message("done downloading libraries");
+                    .finish_with_message("Done downloading libraries!");
 
                 Ok(())
             });
@@ -101,7 +101,7 @@ pub async fn handle_args(args: Args) -> Result<()> {
                 asset_watcher.download_task.await.map_err(|_err| ())?;
                 assets_bar
                     .clone()
-                    .finish_with_message("done downloading assets");
+                    .finish_with_message("Done downloading assets!");
 
                 Ok(())
             });
@@ -127,7 +127,7 @@ pub async fn handle_args(args: Args) -> Result<()> {
                     )
                 })?;
 
-            info!("saved manifest");
+            info!("Saved the version manifest");
 
             version
                 .download_client_jar(
@@ -138,7 +138,7 @@ pub async fn handle_args(args: Args) -> Result<()> {
                     anyhow!("Failed to download client jar for version {}", &version.id)
                 })?;
 
-            info!("saved client jar");
+            info!("Saved the client jar");
         }
     }
     Ok(())
@@ -146,12 +146,16 @@ pub async fn handle_args(args: Args) -> Result<()> {
 
 #[derive(Debug, StructOpt)]
 pub enum Args {
+    /// download minecrafts dependencies
+    /// this includes assets, libraries, the client jar, the client manifest, the version manifest, and more
     DownloadDependencies {
-        /// The .minecraft folder
-        #[structopt(short)]
+        /// The root .minecraft folder
+        /// this is where everything will be downloaded to
+        #[structopt(short, long)]
         root: String,
         /// the minecraft version
-        #[structopt(short)]
+        /// this can be any minecraft version (including snapshot versions) and can be "latest" for the latest release
+        #[structopt(short, long)]
         version: String,
     },
 }
