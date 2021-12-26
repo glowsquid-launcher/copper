@@ -2,6 +2,16 @@
 name = "minecraft-rs"
 version = "0.1.0"
 edition = "2021"
+authors = ["suyashtnt <suyashtnt@gmail.com>"]
+description = "Minecraft launcher: rust edition"
+documentation = "https://docs.rs/minecraft-rs"
+readme = "README.md"
+license = "MIT"
+license-file = "LICENSE"
+homepage = "https://github.com/glowsquid-launcher/minecraft-rs#readme"
+repository = "https://github.com/glowsquid-launcher/minecraft-rs"
+keywords = ["minecraft", "launcher", "game"]
+categories = ["game"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
