@@ -7,7 +7,6 @@ description = "Minecraft launcher: rust edition"
 documentation = "https://docs.rs/minecraft-rs"
 readme = "README.md"
 license = "MIT"
-license-file = "LICENSE"
 homepage = "https://github.com/glowsquid-launcher/minecraft-rs#readme"
 repository = "https://github.com/glowsquid-launcher/minecraft-rs"
 keywords = ["minecraft", "launcher", "game"]
