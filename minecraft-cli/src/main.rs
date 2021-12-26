@@ -1,4 +1,5 @@
-mod cli;
+pub mod cli;
+pub mod download_deps;
 
 use anyhow::Result;
 use cli::{handle_args, Args};
