@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use futures::stream::FuturesUnordered;
+use log::{debug, trace};
 use reqwest::{Client, ClientBuilder};
 use tokio::fs::create_dir_all;
 use tokio::io::AsyncWriteExt;
@@ -16,6 +17,7 @@ pub fn create_download_task(
     final_path: PathBuf,
     client: Option<Client>,
 ) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
+    debug!("Creating download task for {}", url);
     tokio::spawn(async move {
         let client = client
             .clone()
@@ -29,23 +31,30 @@ pub fn create_download_task(
 
         // idk how to get rid of clone
         // hours wasted: 2
-        let action = || client.get(url.clone()).send();
+        let action = || {
+            debug!("Attempting to download {}", url);
+            client.get(url.clone()).send()
+        };
 
         let retry_strategy = FixedInterval::from_millis(100).take(3);
 
         let mut response = Retry::spawn(retry_strategy, action).await?;
 
+        trace!("Creating file at {}", &final_path_str);
         let mut file = tokio::fs::File::create(&final_path_str).await?;
 
+        trace!("Writing response to file");
         while let Some(chunk) = response.chunk().await? {
             file.write(&chunk).await?;
         }
+        trace!("Wrote response to file");
 
+        debug!("Downloaded {}", url);
         Ok(())
     })
 }
 
-pub type FunkyFuturesThing =
+pub type ListOfResultHandles =
     FuturesUnordered<task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>;
 
 #[derive(Clone, Copy)]

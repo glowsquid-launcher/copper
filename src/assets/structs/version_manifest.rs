@@ -1,6 +1,7 @@
 use std::{error::Error, fs::create_dir_all, io::Write, path::PathBuf};
 
 use futures::{stream::FuturesUnordered, StreamExt};
+use log::{debug, trace};
 use serde::{Deserialize, Serialize};
 use tokio::{
     sync::watch::{self, Sender},
@@ -8,7 +9,7 @@ use tokio::{
 };
 
 use crate::util::{
-    create_client, create_download_task, DownloadProgress, DownloadWatcher, FunkyFuturesThing,
+    create_client, create_download_task, DownloadProgress, DownloadWatcher, ListOfResultHandles,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,20 +39,24 @@ pub struct VersionManifest {
 
 impl VersionManifest {
     pub fn save_manifest_json(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
+        trace!("Saving manifest to {}", save_path.display());
         // serialize the struct to a json string
         let json = serde_json::to_string(self)?;
         create_dir_all(save_path.parent().ok_or(
             "save_path doesnt have a parent. Make sure you include the {version}.json bit at the end",
         )?)?;
 
-        // create file and save it
-        let mut file = std::fs::File::create(save_path)?;
+        trace!("Creating file at {}", save_path.display());
+        let mut file = std::fs::File::create(&save_path)?;
+        trace!("Writing manifest to file");
         file.write(json.as_bytes())?;
 
+        debug!("Saved manifest to {}", &save_path.display());
         Ok(())
     }
 
     pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, Box<dyn Error>> {
+        trace!("Downloading asset index");
         // Get json and return it
         Ok(reqwest::get(&self.asset_index.url)
             .await?
@@ -59,7 +64,8 @@ impl VersionManifest {
             .await?)
     }
 
-    pub async fn download_libraries(&self, save_path: PathBuf) -> FunkyFuturesThing {
+    pub async fn download_libraries(&self, save_path: PathBuf) -> ListOfResultHandles {
+        trace!("Downloading libraries");
         let client = create_client();
 
         let tasks = FuturesUnordered::new();
@@ -67,11 +73,16 @@ impl VersionManifest {
         for library in &self.libraries {
             // Check rules for the library to see if it should be downloaded
             if let Some(rules) = &library.rules {
+                trace!("Library {} has rules, checking them", library.name);
                 // if the rules are not satisfied, skip the library
                 if !VersionManifest::check_rules(rules) {
                     continue;
                 }
             }
+            trace!(
+                "Library {} has no rules or the rules passed, downloading",
+                library.name
+            );
 
             // if we get here, then the library is allowed to be downloaded
             let url = library.downloads.artifact.url.clone();
@@ -86,21 +97,29 @@ impl VersionManifest {
             // The full path includes the file name
             let full_path = save_path.join(sub_path);
 
+            debug!(
+                "Creating download task for library {}, saving to {}",
+                library.name,
+                full_path.display()
+            );
             tasks.push(create_download_task(url, full_path, Some(client.clone())))
         }
 
+        debug!("Created {} library download tasks", tasks.len());
         tasks
     }
 
     async fn run_downloads(
-        mut tasks: FunkyFuturesThing,
+        mut tasks: ListOfResultHandles,
         progress_sender: Sender<DownloadProgress>,
     ) {
+        trace!("Running library download tasks");
         let total = tasks.len();
         let mut finished = 0;
 
         while let Some(_) = tasks.next().await {
             finished += 1;
+            debug!("{}/{} library downloads finished", finished, total);
             let _ = progress_sender.send(DownloadProgress {
                 total_size: total as u64,
                 finished,
@@ -109,12 +128,16 @@ impl VersionManifest {
     }
 
     pub async fn start_download_libraries(&self, save_path: PathBuf) -> DownloadWatcher {
+        trace!("Starting download libraries");
+        trace!("Creating progress watcher");
         let (progress_sender, progress_receiver) = watch::channel(DownloadProgress {
             finished: 0,
             total_size: 0,
         });
 
+        trace!("Creating download tasks");
         let tasks = self.download_libraries(save_path).await;
+        trace!("Starting download tasks");
         let download_task = task::spawn(Self::run_downloads(tasks, progress_sender));
 
         DownloadWatcher {

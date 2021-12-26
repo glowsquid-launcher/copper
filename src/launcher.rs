@@ -3,6 +3,7 @@ use std::process::Command;
 use crate::assets::structs::version_manifest::VersionManifest;
 use crate::{assets, parser::GameArguments};
 use derive_builder::Builder;
+use log::{debug, trace};
 
 #[derive(Default, Builder, Debug, Clone)]
 pub struct AuthenticationDetails {
@@ -17,8 +18,8 @@ pub struct AuthenticationDetails {
 
 #[derive(Default, Builder, Debug, Clone)]
 pub struct CustomResolution {
-    width: i32,
-    height: i32,
+    pub width: i32,
+    pub height: i32,
 }
 
 #[derive(Default, Clone, Builder, Debug)]
@@ -44,7 +45,10 @@ pub struct LauncherArgs {
 }
 
 pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: VersionManifest) {
+    trace!("Launching minecraft");
+
     let game_args = parse_game_arguments(&launcher_arguments, version_manifest);
+    debug!("Game arguments: {:?}", &game_args);
 
     let command = Command::new("java");
 }

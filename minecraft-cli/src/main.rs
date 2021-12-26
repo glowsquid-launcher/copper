@@ -20,7 +20,9 @@ fn setup_logger() -> Result<(), fern::InitError> {
             let colours = ColoredLevelConfig::new()
                 .info(Color::Green)
                 .warn(Color::Yellow)
-                .error(Color::Red);
+                .error(Color::Red)
+                .debug(Color::BrightBlack)
+                .trace(Color::BrightBlack);
 
             out.finish(format_args!(
                 "{} [{}] {}",
@@ -29,7 +31,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
                 message
             ))
         })
-        .level(log::LevelFilter::Info)
+        .level(log::LevelFilter::Debug)
         .chain(std::io::stdout())
         .chain(fern::log_file("output.log")?)
         .apply()?;

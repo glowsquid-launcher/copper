@@ -1,4 +1,5 @@
 use super::version_manifest::VersionManifest;
+use log::trace;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 
@@ -10,6 +11,7 @@ pub struct LauncherMeta {
 
 impl LauncherMeta {
     pub async fn download_meta() -> Result<Self, Box<dyn Error>> {
+        trace!("Downloading launcher meta");
         let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
 
         Ok(reqwest::get(server_url)
@@ -61,6 +63,7 @@ pub struct Version {
 
 impl Version {
     pub async fn version_manifest(&self) -> Result<VersionManifest, Box<dyn Error>> {
+        trace!("Downloading version manifest for {}", self.id);
         // download the version manifest and return a parsed version manifest
         Ok(reqwest::get(&self.url)
             .await?
