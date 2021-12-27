@@ -86,7 +86,7 @@ impl GameArguments {
             "clientid" => client_id,
             "auth_xuid" => launcher_arguments.authentication_details.xbox_uid.to_owned(),
             // we assume that the user is a microsoft account
-            "user_type" => "ms".to_string(),
+            "user_type" => "msa".to_string(),
             "version_type" => if launcher_arguments.is_snapshot { "snapshot".to_string() } else { "release".to_string() },
             "resolution_width" if launcher_arguments.custom_resolution.is_some() => {
                 launcher_arguments.custom_resolution.as_ref().unwrap().width.to_string()
