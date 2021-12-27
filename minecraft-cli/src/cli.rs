@@ -51,15 +51,6 @@ pub async fn handle_args(args: Args) -> Result<()> {
                 .build()
                 .expect("Failed to build authentication details");
 
-            info!(
-                "{}",
-                root.join("versions")
-                    .join(&version_id)
-                    .join(format!("{}.json", &version_id))
-                    .to_str()
-                    .unwrap()
-            );
-
             let launcher_args = LauncherArgsBuilder::default()
                 .assets_directory(root.join("assets"))
                 .authentication_details(authentication_details)
@@ -83,7 +74,8 @@ pub async fn handle_args(args: Args) -> Result<()> {
                         .join(&version_id)
                         .join(format!("{}.json", &version_id)),
                 )
-                .version_name("mojank")
+                .version_name(&version_id)
+                .client_branding("minecraft.rs")
                 .build()
                 .expect("Failed to build launcher args");
 

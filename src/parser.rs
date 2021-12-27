@@ -78,15 +78,15 @@ impl GameArguments {
         match dynamic_argument {
             "auth_player_name" => launcher_arguments.authentication_details.username.to_owned(),
             "version_name" => launcher_arguments.version_name.to_owned(),
-            "game_directory" => launcher_arguments.game_directory.to_owned().to_str().unwrap().to_owned(),
-            "assets_root" => launcher_arguments.assets_directory.to_owned().to_str().unwrap().to_owned(),
+            "game_directory" => canonicalize(launcher_arguments.game_directory.to_owned()).unwrap().to_str().unwrap().to_owned(),
+            "assets_root" => canonicalize(launcher_arguments.assets_directory.to_owned()).unwrap().to_str().unwrap().to_owned(),
             "assets_index_name" => launcher_arguments.version_name.to_owned(),
             "auth_uuid" => launcher_arguments.authentication_details.uuid.to_owned(),
             "auth_access_token" => launcher_arguments.authentication_details.access_token.to_owned(),
             "clientid" => client_id,
             "auth_xuid" => launcher_arguments.authentication_details.xbox_uid.to_owned(),
             // we assume that the user is a microsoft account
-            "user_type" => "microsoft".to_string(),
+            "user_type" => "ms".to_string(),
             "version_type" => if launcher_arguments.is_snapshot { "snapshot".to_string() } else { "release".to_string() },
             "resolution_width" if launcher_arguments.custom_resolution.is_some() => {
                 launcher_arguments.custom_resolution.as_ref().unwrap().width.to_string()
@@ -134,7 +134,7 @@ impl JavaArguments {
                     .unwrap()
                     .to_string(),
             )
-            .replace("${launcher_name}", &launcher_arguments.version_name)
+            .replace("${launcher_name}", &launcher_arguments.client_branding)
             .replace("${launcher_version}", &launcher_arguments.launcher_name)
             .replace(
                 "${classpath}",

@@ -55,15 +55,14 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
         .start_download_libraries(libraries_path.to_path_buf())
         .await;
 
-    let mut asset_watcher = version
-        .asset_index()
-        .await
-        .map_err(|_e| {
-            anyhow!(
-                "Failed to download asset index for version {}",
-                &version_info.id
-            )
-        })?
+    let asset_index = version.asset_index().await.map_err(|_e| {
+        anyhow!(
+            "Failed to download asset index for version {}",
+            &version_info.id
+        )
+    })?;
+
+    let mut asset_watcher = asset_index
         .start_download_assets((&root_path / "assets" / "objects").to_path_buf())
         .await;
 
@@ -109,6 +108,16 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
     assets
         .await?
         .map_err(|_err| anyhow!("Failed to download assets"))?;
+
+    asset_index
+        .save_index(
+            (&root_path / "assets" / "indexes" / &format!("{}.json", version_info.id))
+                .to_path_buf(),
+        )
+        .await
+        .map_err(|_e| anyhow!("failed to save asset index"))?;
+
+    info!("Saved asset index");
 
     version
         .save_manifest_json((&version_path / &format!("{}.json", &version.id)).to_path_buf())

@@ -19,18 +19,21 @@ pub struct AssetIndex {
 }
 
 impl AssetIndex {
-    pub async fn save_index(&self, save_path: String) -> Result<(), Box<dyn Error>> {
+    pub async fn save_index(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
         // serialize the struct to a json string
         trace!("Serializing AssetIndex to JSON");
         let json = serde_json::to_string(self)?;
 
         // create file and save it
-        trace!("Creating AssetIndex file at {}", &save_path);
+        trace!(
+            "Creating AssetIndex file at {}",
+            &save_path.to_str().unwrap()
+        );
         let mut file = std::fs::File::create(&save_path)?;
         trace!("Writing JSON to AssetIndex file");
         file.write(json.as_bytes())?;
 
-        debug!("Saved AssetIndex to {}", &save_path);
+        debug!("Saved AssetIndex to {}", &save_path.to_str().unwrap());
         Ok(())
     }
 

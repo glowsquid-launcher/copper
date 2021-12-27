@@ -5,7 +5,7 @@ use crate::assets::structs::version_manifest::VersionManifest;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use derive_builder::Builder;
-use log::{debug, trace, warn};
+use log::{debug, info, trace, warn};
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -52,8 +52,10 @@ pub struct LauncherArgs {
     pub version_manifest_path: PathBuf,
     /// is this version a snapshot
     pub is_snapshot: bool,
-    /// the version name/client branding
+    /// the version name
     pub version_name: String,
+    /// the client brand
+    pub client_branding: String,
     /// the min/max amount of ram to use
     pub ram_size: RamSize,
     /// the path to javaw.exe
@@ -106,13 +108,13 @@ pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<V
         let status = process
             .wait()
             .await
-            .expect("child process encountered an error");
+            .expect("the minecraft process encountered an error");
 
-        debug!("child status was: {}", status);
+        info!("minecraft exit status was: {}", status);
     });
 
     while let Some(line) = out_reader.next_line().await.unwrap() {
-        debug!("JAVA STDOUT: {}", line);
+        info!("JAVA STDOUT: {}", line);
     }
 
     while let Some(line) = err_reader.next_line().await.unwrap() {
