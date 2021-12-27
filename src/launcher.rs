@@ -75,9 +75,16 @@ pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<V
         .expect("Failed to parse version manifest"),
     };
 
-    let game_args = parse_game_arguments(&launcher_arguments, &version_manifest);
+    let game_args: Vec<String> = parse_game_arguments(&launcher_arguments, &version_manifest)
+        .into_iter()
+        .filter(|arg| !arg.is_empty())
+        .collect();
     debug!("Game arguments: {:?}", &game_args);
-    let java_args = parse_java_arguments(&launcher_arguments, &version_manifest).await;
+    let java_args: Vec<String> = parse_java_arguments(&launcher_arguments, &version_manifest)
+        .await
+        .into_iter()
+        .filter(|arg| !arg.is_empty())
+        .collect();
     debug!("Java arguments: {:?}", &java_args);
     debug!("main class: {}", &version_manifest.main_class);
 
@@ -85,8 +92,8 @@ pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<V
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .args(&java_args)
-        .args(&game_args)
         .arg(&version_manifest.main_class)
+        .args(&game_args)
         .spawn()
         .expect("Failed to start minecraft");
 

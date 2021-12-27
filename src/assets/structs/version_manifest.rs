@@ -85,24 +85,43 @@ impl VersionManifest {
             );
 
             // if we get here, then the library is allowed to be downloaded
-            let url = library.downloads.artifact.url.clone();
-            let sub_path = library
-                .downloads
-                .artifact
-                .path
-                .as_ref()
-                .ok_or("library doesnt have a path. Please report this bug to https://github.com/glowsquid-launcher/glowsquid/issues")
-                .unwrap();
 
-            // The full path includes the file name
-            let full_path = save_path.join(sub_path);
-
-            debug!(
-                "Creating download task for library {}, saving to {}",
-                library.name,
-                full_path.display()
+            Self::create_save_task(
+                &library.downloads.artifact,
+                &save_path,
+                library,
+                &tasks,
+                &client,
             );
-            tasks.push(create_download_task(url, full_path, Some(client.clone())))
+
+            if let Some(classifiers) = &library.downloads.classifiers {
+                match std::env::consts::OS {
+                    "windows" => {
+                        if let Some(windows) = &classifiers.natives_windows {
+                            Self::create_save_task(windows, &save_path, library, &tasks, &client);
+                        } else {
+                            continue;
+                        }
+                    }
+                    "macos" => {
+                        if let Some(macos) = &classifiers.natives_macos {
+                            Self::create_save_task(macos, &save_path, library, &tasks, &client);
+                        } else if let Some(osx) = &classifiers.natives_osx {
+                            Self::create_save_task(osx, &save_path, library, &tasks, &client);
+                        } else {
+                            continue;
+                        }
+                    }
+                    "linux" => {
+                        if let Some(linux) = &classifiers.natives_linux {
+                            Self::create_save_task(linux, &save_path, library, &tasks, &client);
+                        } else {
+                            continue;
+                        }
+                    }
+                    _ => panic!("Unsupported OS"),
+                };
+            }
         }
 
         debug!("Created {} library download tasks", tasks.len());
@@ -211,6 +230,28 @@ impl VersionManifest {
         }
 
         true
+    }
+
+    fn create_save_task(
+        mappings_class: &MappingsClass,
+        save_path: &PathBuf,
+        library: &Library,
+        tasks: &FuturesUnordered<task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>,
+        client: &reqwest::Client,
+    ) {
+        let url = mappings_class.url.clone();
+        let sub_path = mappings_class
+        .path
+        .as_ref()
+        .ok_or("library doesnt have a path. Please report this bug to https://github.com/glowsquid-launcher/glowsquid/issues")
+        .unwrap();
+        let full_path = save_path.join(sub_path);
+        debug!(
+            "Creating download task for library {}, saving to {}",
+            library.name,
+            full_path.display()
+        );
+        tasks.push(create_download_task(url, full_path, Some(client.clone())));
     }
 }
 

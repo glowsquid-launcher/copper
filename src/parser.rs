@@ -140,7 +140,6 @@ impl JavaArguments {
                 "${classpath}",
                 classpath
                     .join(if cfg!(windows) { ";" } else { ":" })
-                    .replace("\\", "/")
                     .as_str(),
             )
     }
@@ -237,6 +236,75 @@ impl JavaArguments {
                 .unwrap()
                 .to_owned(),
             );
+
+            if let Some(classifiers) = &library.downloads.classifiers {
+                match std::env::consts::OS {
+                    "windows" => {
+                        if let Some(windows) = &classifiers.natives_windows {
+                            cp.push(
+                                canonicalize(
+                                    launcher_arguments
+                                        .libraries_directory
+                                        .join(windows.path.as_ref().unwrap()),
+                                )
+                                .expect("failed to resolve library path")
+                                .to_str()
+                                .unwrap()
+                                .to_owned(),
+                            );
+                        } else {
+                            continue;
+                        }
+                    }
+                    "macos" => {
+                        if let Some(macos) = &classifiers.natives_macos {
+                            cp.push(
+                                canonicalize(
+                                    launcher_arguments
+                                        .libraries_directory
+                                        .join(macos.path.as_ref().unwrap()),
+                                )
+                                .expect("failed to resolve library path")
+                                .to_str()
+                                .unwrap()
+                                .to_owned(),
+                            );
+                        } else if let Some(osx) = &classifiers.natives_osx {
+                            cp.push(
+                                canonicalize(
+                                    launcher_arguments
+                                        .libraries_directory
+                                        .join(osx.path.as_ref().unwrap()),
+                                )
+                                .expect("failed to resolve library path")
+                                .to_str()
+                                .unwrap()
+                                .to_owned(),
+                            )
+                        } else {
+                            continue;
+                        }
+                    }
+                    "linux" => {
+                        if let Some(linux) = &classifiers.natives_linux {
+                            cp.push(
+                                canonicalize(
+                                    launcher_arguments
+                                        .libraries_directory
+                                        .join(linux.path.as_ref().unwrap()),
+                                )
+                                .expect("failed to resolve library path")
+                                .to_str()
+                                .unwrap()
+                                .to_owned(),
+                            );
+                        } else {
+                            continue;
+                        }
+                    }
+                    _ => panic!("Unsupported OS"),
+                };
+            }
         }
 
         cp.push(
