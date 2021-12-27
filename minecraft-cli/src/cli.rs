@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use log::info;
+use log::{info, warn};
 use minecraft_rs::{
     assets::structs::launcher_meta::LauncherMeta,
     launcher::{launch, AuthenticationDetailsBuilder, LauncherArgsBuilder, RamSize},
@@ -79,7 +79,20 @@ pub async fn handle_args(args: Args) -> Result<()> {
                 .build()
                 .expect("Failed to build launcher args");
 
-            launch(launcher_args, None).await;
+            let game_output = launch(launcher_args, None).await;
+
+            let mut out_reader = game_output.stdout;
+            let mut err_reader = game_output.stderr;
+
+            while let Some(line) = out_reader.next_line().await.unwrap() {
+                info!("JAVA STDOUT: {}", line);
+            }
+
+            while let Some(line) = err_reader.next_line().await.unwrap() {
+                warn!("JAVA STDERR: {}", line);
+            }
+
+            game_output.exit_handle.await.unwrap();
         }
     }
     Ok(())

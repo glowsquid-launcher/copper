@@ -1,14 +1,15 @@
 use std::path::PathBuf;
-use std::process::Stdio;
+use std::process::{ExitStatus, Stdio};
 
 use crate::assets::structs::version_manifest::VersionManifest;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use derive_builder::Builder;
-use log::{debug, info, trace, warn};
+use log::{debug, trace};
 use tokio::fs;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
+use tokio::io::{AsyncBufReadExt, BufReader, Lines};
+use tokio::process::{ChildStderr, ChildStdout, Command};
+use tokio::task::JoinHandle;
 
 #[derive(Default, Builder, Debug, Clone)]
 pub struct AuthenticationDetails {
@@ -64,7 +65,16 @@ pub struct LauncherArgs {
     pub launcher_name: String,
 }
 
-pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<VersionManifest>) {
+pub struct GameOutput {
+    pub stdout: Lines<BufReader<ChildStdout>>,
+    pub stderr: Lines<BufReader<ChildStderr>>,
+    pub exit_handle: JoinHandle<ExitStatus>,
+}
+
+pub async fn launch(
+    launcher_arguments: LauncherArgs,
+    version_manifest: Option<VersionManifest>,
+) -> GameOutput {
     trace!("Launching minecraft");
 
     let version_manifest = match version_manifest {
@@ -82,6 +92,7 @@ pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<V
         .filter(|arg| !arg.is_empty())
         .collect();
     debug!("Game arguments: {:?}", &game_args);
+
     let java_args: Vec<String> = parse_java_arguments(&launcher_arguments, &version_manifest)
         .await
         .into_iter()
@@ -101,27 +112,21 @@ pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<V
 
     let stdout = process.stdout.take().unwrap();
     let stderr = process.stderr.take().unwrap();
-    let mut out_reader = BufReader::new(stdout).lines();
-    let mut err_reader = BufReader::new(stderr).lines();
+    let out_reader = BufReader::new(stdout).lines();
+    let err_reader = BufReader::new(stderr).lines();
 
     let exit = tokio::spawn(async move {
-        let status = process
+        process
             .wait()
             .await
-            .expect("the minecraft process encountered an error");
-
-        info!("minecraft exit status was: {}", status);
+            .expect("the minecraft process encountered an error")
     });
 
-    while let Some(line) = out_reader.next_line().await.unwrap() {
-        info!("JAVA STDOUT: {}", line);
+    GameOutput {
+        stderr: err_reader,
+        stdout: out_reader,
+        exit_handle: exit,
     }
-
-    while let Some(line) = err_reader.next_line().await.unwrap() {
-        warn!("JAVA STDERR: {}", line);
-    }
-
-    exit.await.unwrap();
 }
 
 async fn parse_java_arguments(
