@@ -75,7 +75,7 @@ impl VersionManifest {
             if let Some(rules) = &library.rules {
                 trace!("Library {} has rules, checking them", library.name);
                 // if the rules are not satisfied, skip the library
-                if !VersionManifest::check_rules(rules) {
+                if !VersionManifest::check_library_rules(rules) {
                     continue;
                 }
             }
@@ -170,7 +170,7 @@ impl VersionManifest {
         Ok(())
     }
 
-    fn check_rules(rules: &Vec<LibraryRule>) -> bool {
+    pub fn check_library_rules(rules: &Vec<LibraryRule>) -> bool {
         for rule in rules {
             match rule.action {
                 Action::Allow => {

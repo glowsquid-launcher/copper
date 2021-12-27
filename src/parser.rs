@@ -1,6 +1,6 @@
 use log::trace;
 
-use crate::assets::structs::version_manifest::{Action, GameRule, JvmRule, Value};
+use crate::assets::structs::version_manifest::{Action, GameRule, JvmRule, Value, VersionManifest};
 use crate::assets::structs::version_manifest::{GameClass, JvmClass};
 use crate::launcher::LauncherArgs;
 #[cfg(target_os = "windows")]
@@ -75,8 +75,8 @@ impl GameArguments {
         match dynamic_argument {
             "auth_player_name" => launcher_arguments.authentication_details.username.to_owned(),
             "version_name" => launcher_arguments.version_name.to_owned(),
-            "game_directory" => launcher_arguments.game_directory.to_owned(),
-            "assets_root" => launcher_arguments.assets_directory.to_owned(),
+            "game_directory" => launcher_arguments.game_directory.to_owned().to_str().unwrap().to_owned(),
+            "assets_root" => launcher_arguments.assets_directory.to_owned().to_str().unwrap().to_owned(),
             "asset_index_name" => launcher_arguments.version_name.to_owned(),
             "auth_uuid" => launcher_arguments.authentication_details.uuid.to_owned(),
             "auth_access_token" => launcher_arguments.authentication_details.access_token.to_owned(),
@@ -114,18 +114,38 @@ impl GameArguments {
 }
 
 impl JavaArguments {
-    pub fn parse_string_argument(launcher_arguments: &LauncherArgs, argument: String) -> String {
+    pub fn parse_string_argument(
+        launcher_arguments: &LauncherArgs,
+        version_manifest: &VersionManifest,
+        argument: String,
+    ) -> String {
+        let classpath = Self::create_classpath(version_manifest, launcher_arguments);
+
         argument
             .replace(
                 "${natives_directory}",
                 //TODO: Add compat with 1.16.5 which uses <version>/natives
-                &launcher_arguments.libraries_directory,
+                &launcher_arguments
+                    .libraries_directory
+                    .to_str()
+                    .unwrap()
+                    .to_string(),
             )
             .replace("${launcher_name}", &launcher_arguments.version_name)
             .replace("${launcher_version}", &launcher_arguments.launcher_name)
+            .replace(
+                "${classpath}",
+                classpath
+                    .join(if cfg!(windows) { ";" } else { ":" })
+                    .as_str(),
+            )
     }
 
-    pub fn parse_class_argument(launcher_arguments: &LauncherArgs, argument: &JvmClass) -> String {
+    pub fn parse_class_argument(
+        launcher_arguments: &LauncherArgs,
+        version_manifest: &VersionManifest,
+        argument: &JvmClass,
+    ) -> String {
         for rule in &argument.rules {
             if !Self::match_rule(rule, launcher_arguments) {
                 return "".to_string();
@@ -134,6 +154,7 @@ impl JavaArguments {
 
         Self::parse_string_argument(
             launcher_arguments,
+            version_manifest,
             match &argument.value {
                 Value::String(str) => str.to_string(),
                 Value::StringArray(array) => array.join(" "),
@@ -150,23 +171,20 @@ impl JavaArguments {
                 if let Some(name) = &rule.os.name {
                     current_allow = match &*name.to_owned() {
                         "osx" =>  cfg!(target_os = "macos"),
+                        #[cfg(target_os = "windows")]
                         "windows" => {
-                             if cfg!(target_os = "windows") {
                                 if let Some(ver) = &rule.os.version {
                                     if ver != "^10\\." {
                                         panic!("unrecognised windows version: {:?}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", ver);
                                     }
-                                    #[cfg(target_os = "windows")]
+
                                     return IsWindows10OrGreater();
-                                    #[cfg(not(target_os = "windows"))]
-                                    false
                                 } else {
                                     true
                                 }
-                            } else {
-                                false
-                            }
                         },
+                        #[cfg(not(target_os = "windows"))]
+                        "windows" => false,
                         "linux" => cfg!(target_os = "linux"),
                         _ => panic!("unrecognised os name {}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", name),
                     };
@@ -188,5 +206,33 @@ impl JavaArguments {
             }
         }
         current_allow
+    }
+
+    fn create_classpath(
+        version_manifest: &VersionManifest,
+        launcher_arguments: &LauncherArgs,
+    ) -> Vec<String> {
+        let mut cp = vec![];
+
+        for library in &version_manifest.libraries {
+            if let Some(rules) = &library.rules {
+                if !VersionManifest::check_library_rules(rules) {
+                    continue;
+                }
+            }
+
+            cp.push(
+                launcher_arguments
+                    .libraries_directory
+                    .join(library.downloads.artifact.path.as_ref().unwrap())
+                    .to_str()
+                    .unwrap()
+                    .to_owned(),
+            );
+        }
+
+        cp.push(launcher_arguments.jar_path.to_str().unwrap().to_owned());
+
+        cp
     }
 }

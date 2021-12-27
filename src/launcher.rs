@@ -1,10 +1,13 @@
-use std::process::Command;
+use std::path::PathBuf;
+use std::process::Stdio;
 
 use crate::assets::structs::version_manifest::VersionManifest;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use derive_builder::Builder;
 use log::{debug, trace};
+use tokio::fs;
+use tokio::process::Command;
 
 #[derive(Default, Builder, Debug, Clone)]
 pub struct AuthenticationDetails {
@@ -38,15 +41,15 @@ pub struct LauncherArgs {
     /// a custom resolution to use instead of the default
     pub custom_resolution: Option<CustomResolution>,
     /// the minecraft jar file path
-    pub jar_path: String,
+    pub jar_path: PathBuf,
     /// the root .minecraft folder
-    pub game_directory: String,
+    pub game_directory: PathBuf,
     /// the assets directory, this is the root of the assets folder
-    pub assets_directory: String,
+    pub assets_directory: PathBuf,
     /// the libraries directory, this is the root of the libraries folder
-    pub libraries_directory: String,
+    pub libraries_directory: PathBuf,
     /// the path to <version>.json
-    pub version_manifest_path: String,
+    pub version_manifest_path: PathBuf,
     /// is this version a snapshot
     pub is_snapshot: bool,
     /// the version name/client branding
@@ -54,19 +57,36 @@ pub struct LauncherArgs {
     /// the min/max amount of ram to use
     pub ram_size: RamSize,
     /// the path to javaw.exe
-    pub java_path: String,
+    pub java_path: PathBuf,
     /// the launcher name (e.g glowsquid)
     pub launcher_name: String,
 }
 
-pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: VersionManifest) {
+pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<VersionManifest>) {
     trace!("Launching minecraft");
+
+    let version_manifest = match version_manifest {
+        Some(manifest) => manifest,
+        None => serde_json::from_str(
+            &fs::read_to_string(launcher_arguments.version_manifest_path.clone())
+                .await
+                .expect("Failed to read version manifest"),
+        )
+        .expect("Failed to parse version manifest"),
+    };
 
     let game_args = parse_game_arguments(&launcher_arguments, &version_manifest);
     debug!("Game arguments: {:?}", &game_args);
     let java_args = parse_java_arguments(&launcher_arguments, &version_manifest);
+    debug!("Java arguments: {:?}", &java_args);
 
-    let command = Command::new("java");
+    let process = Command::new(&launcher_arguments.java_path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .args(&java_args)
+        .args(&game_args)
+        .spawn()
+        .expect("Failed to start minecraft");
 }
 
 fn parse_java_arguments(
@@ -78,10 +98,14 @@ fn parse_java_arguments(
     for arg in &version_manifest.arguments.jvm {
         let formatted_arg = match arg {
             assets::structs::version_manifest::JvmElement::JvmClass(argument) => {
-                JavaArguments::parse_class_argument(&launcher_arguments, argument)
+                JavaArguments::parse_class_argument(&launcher_arguments, version_manifest, argument)
             }
             assets::structs::version_manifest::JvmElement::String(argument) => {
-                JavaArguments::parse_string_argument(&launcher_arguments, argument.to_string())
+                JavaArguments::parse_string_argument(
+                    &launcher_arguments,
+                    version_manifest,
+                    argument.to_string(),
+                )
             }
         };
 
