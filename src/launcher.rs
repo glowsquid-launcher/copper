@@ -33,16 +33,30 @@ pub struct RamSize {
 #[derive(Default, Clone, Builder, Debug)]
 #[builder(setter(into), pattern = "mutable")]
 pub struct LauncherArgs {
+    /// the authentication details (username, uuid, access token, xbox uid, etc)
     pub authentication_details: AuthenticationDetails,
+    /// a custom resolution to use instead of the default
     pub custom_resolution: Option<CustomResolution>,
+    /// the minecraft jar file path
     pub jar_path: String,
+    /// the root .minecraft folder
     pub game_directory: String,
+    /// the assets directory, this is the root of the assets folder
     pub assets_directory: String,
+    /// the libraries directory, this is the root of the libraries folder
+    pub libraries_directory: String,
+    /// the path to <version>.json
     pub version_manifest_path: String,
+    /// is this version a snapshot
     pub is_snapshot: bool,
+    /// the version name/client branding
     pub version_name: String,
+    /// the min/max amount of ram to use
     pub ram_size: RamSize,
+    /// the path to javaw.exe
     pub java_path: String,
+    /// the launcher name (e.g glowsquid)
+    pub launcher_name: String,
 }
 
 pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: VersionManifest) {

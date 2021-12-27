@@ -476,6 +476,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-retry",
+ "winsafe",
 ]
 
 [[package]]
@@ -1136,3 +1137,9 @@ checksum = "0120db82e8a1e0b9fb3345a539c478767c0048d842860994d96113d5b667bd69"
 dependencies = [
  "winapi",
 ]
+
+[[package]]
+name = "winsafe"
+version = "0.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03aa6344b007345ee372cdf5cef9b0e1541d1ad0dfc63af202b9cde63fc3f5d6"

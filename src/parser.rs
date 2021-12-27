@@ -1,9 +1,10 @@
 use log::trace;
 
-use crate::assets::structs::version_manifest::{Action, GameRule};
+use crate::assets::structs::version_manifest::{Action, GameRule, JvmRule, Value};
 use crate::assets::structs::version_manifest::{GameClass, JvmClass};
 use crate::launcher::LauncherArgs;
-
+#[cfg(target_os = "windows")]
+use winsafe::IsWindows10OrGreater;
 pub struct GameArguments;
 pub struct JavaArguments;
 
@@ -11,10 +12,14 @@ impl GameArguments {
     // If the rules are not met the function returns ""
     pub fn parse_class_argument(launcher_arguments: &LauncherArgs, argument: &GameClass) -> String {
         trace!("Parsing class argument: {:?}", argument);
-        argument.rules.iter().any(|rule| {
+        let rules_result = argument.rules.iter().any(|rule| {
             trace!("Checking rule: {:?}", rule);
             !Self::match_rule(rule, launcher_arguments)
         });
+
+        if !rules_result {
+            return "".to_string();
+        }
 
         match &argument.value {
             crate::assets::structs::version_manifest::Value::String(argument) => {
@@ -42,7 +47,7 @@ impl GameArguments {
     pub fn parse_string_argument(launcher_arguments: &LauncherArgs, argument: String) -> String {
         trace!("Parsing string argument: {:?}", &argument);
         return if argument.starts_with("${") && argument.ends_with("}") {
-            let dynamic_argument = &*argument[2..argument.len() - 1].to_string();
+            let dynamic_argument = &argument[2..argument.len() - 1].to_string();
 
             Self::match_dynamic_argument(launcher_arguments, dynamic_argument).to_string()
         } else if argument == "--clientId" {
@@ -110,10 +115,78 @@ impl GameArguments {
 
 impl JavaArguments {
     pub fn parse_string_argument(launcher_arguments: &LauncherArgs, argument: String) -> String {
-        todo!()
+        argument
+            .replace(
+                "${natives_directory}",
+                //TODO: Add compat with 1.16.5 which uses <version>/natives
+                &launcher_arguments.libraries_directory,
+            )
+            .replace("${launcher_name}", &launcher_arguments.version_name)
+            .replace("${launcher_version}", &launcher_arguments.launcher_name)
     }
 
     pub fn parse_class_argument(launcher_arguments: &LauncherArgs, argument: &JvmClass) -> String {
-        todo!()
+        for rule in &argument.rules {
+            if !Self::match_rule(rule, launcher_arguments) {
+                return "".to_string();
+            }
+        }
+
+        Self::parse_string_argument(
+            launcher_arguments,
+            match &argument.value {
+                Value::String(str) => str.to_string(),
+                Value::StringArray(array) => array.join(" "),
+            },
+        )
+    }
+
+    // launcher arguments may be needed in the future
+    fn match_rule(rule: &JvmRule, _launcher_arguments: &LauncherArgs) -> bool {
+        let mut current_allow = false;
+
+        match rule.action {
+            Action::Allow => {
+                if let Some(name) = &rule.os.name {
+                    current_allow = match &*name.to_owned() {
+                        "osx" =>  cfg!(target_os = "macos"),
+                        "windows" => {
+                             if cfg!(target_os = "windows") {
+                                if let Some(ver) = &rule.os.version {
+                                    if ver != "^10\\." {
+                                        panic!("unrecognised windows version: {:?}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", ver);
+                                    }
+                                    #[cfg(target_os = "windows")]
+                                    return IsWindows10OrGreater();
+                                    #[cfg(not(target_os = "windows"))]
+                                    false
+                                } else {
+                                    true
+                                }
+                            } else {
+                                false
+                            }
+                        },
+                        "linux" => cfg!(target_os = "linux"),
+                        _ => panic!("unrecognised os name {}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", name),
+                    };
+                }
+
+                if current_allow == false {
+                    return false;
+                }
+
+                if let Some(arch) = &rule.os.arch {
+                    match &*arch.to_owned() {
+                        "x86" => current_allow = cfg!(target_arch = "x86"),
+                        _ => panic!("unrecognised os arch {}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using ", arch),
+                    }
+                }
+            }
+            Action::Disallow => {
+                panic!("no disallows have been implemented yet. Please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using");
+            }
+        }
+        current_allow
     }
 }
