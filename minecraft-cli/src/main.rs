@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod download_deps;
+pub mod launch_minecraft;
 
 use anyhow::Result;
 use cli::{handle_args, Args};

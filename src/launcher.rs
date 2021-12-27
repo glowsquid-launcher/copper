@@ -4,14 +4,13 @@ use std::process::{ExitStatus, Stdio};
 use crate::assets::structs::version_manifest::VersionManifest;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
-use derive_builder::Builder;
 use log::{debug, trace};
 use tokio::fs;
 use tokio::io::{AsyncBufReadExt, BufReader, Lines};
 use tokio::process::{ChildStderr, ChildStdout, Command};
 use tokio::task::JoinHandle;
 
-#[derive(Default, Builder, Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct AuthenticationDetails {
     pub username: String,
     pub uuid: String,
@@ -21,21 +20,25 @@ pub struct AuthenticationDetails {
     pub is_demo_user: bool,
 }
 
-#[derive(Default, Builder, Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct CustomResolution {
     pub width: i32,
     pub height: i32,
 }
 
-#[derive(Default, Clone, Builder, Debug)]
-#[builder(setter(into), pattern = "mutable")]
+#[derive(Default, Clone, Debug)]
 pub struct RamSize {
     pub min: String,
     pub max: String,
 }
 
-#[derive(Default, Clone, Builder, Debug)]
-#[builder(setter(into), pattern = "mutable")]
+pub struct GameOutput {
+    pub stdout: Lines<BufReader<ChildStdout>>,
+    pub stderr: Lines<BufReader<ChildStderr>>,
+    pub exit_handle: JoinHandle<ExitStatus>,
+}
+
+#[derive(Default, Clone, Debug)]
 pub struct LauncherArgs {
     /// the authentication details (username, uuid, access token, xbox uid, etc)
     pub authentication_details: AuthenticationDetails,
@@ -63,12 +66,6 @@ pub struct LauncherArgs {
     pub java_path: PathBuf,
     /// the launcher name (e.g glowsquid)
     pub launcher_name: String,
-}
-
-pub struct GameOutput {
-    pub stdout: Lines<BufReader<ChildStdout>>,
-    pub stderr: Lines<BufReader<ChildStderr>>,
-    pub exit_handle: JoinHandle<ExitStatus>,
 }
 
 pub async fn launch(
