@@ -1,6 +1,7 @@
 use std::process::Command;
 
 use crate::assets::structs::version_manifest::VersionManifest;
+use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use derive_builder::Builder;
 use log::{debug, trace};
@@ -47,25 +48,48 @@ pub struct LauncherArgs {
 pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: VersionManifest) {
     trace!("Launching minecraft");
 
-    let game_args = parse_game_arguments(&launcher_arguments, version_manifest);
+    let game_args = parse_game_arguments(&launcher_arguments, &version_manifest);
     debug!("Game arguments: {:?}", &game_args);
+    let java_args = parse_java_arguments(&launcher_arguments, &version_manifest);
 
     let command = Command::new("java");
 }
 
+fn parse_java_arguments(
+    launcher_arguments: &LauncherArgs,
+    version_manifest: &VersionManifest,
+) -> Vec<String> {
+    let mut args: Vec<String> = vec![];
+
+    for arg in &version_manifest.arguments.jvm {
+        let formatted_arg = match arg {
+            assets::structs::version_manifest::JvmElement::JvmClass(argument) => {
+                JavaArguments::parse_class_argument(&launcher_arguments, argument)
+            }
+            assets::structs::version_manifest::JvmElement::String(argument) => {
+                JavaArguments::parse_string_argument(&launcher_arguments, argument.to_string())
+            }
+        };
+
+        args.push(formatted_arg)
+    }
+
+    args
+}
+
 fn parse_game_arguments(
     launcher_arguments: &LauncherArgs,
-    version_manifest: VersionManifest,
+    version_manifest: &VersionManifest,
 ) -> Vec<String> {
-    let mut args: Vec<String> = Vec::new();
+    let mut args: Vec<String> = vec![];
 
-    for arg in version_manifest.arguments.game {
+    for arg in &version_manifest.arguments.game {
         let formatted_arg = match arg {
             assets::structs::version_manifest::GameElement::GameClass(argument) => {
                 GameArguments::parse_class_argument(&launcher_arguments, argument)
             }
             assets::structs::version_manifest::GameElement::String(argument) => {
-                GameArguments::parse_string_argument(&launcher_arguments, argument)
+                GameArguments::parse_string_argument(&launcher_arguments, argument.to_string())
             }
         };
 

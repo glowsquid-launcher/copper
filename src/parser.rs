@@ -1,7 +1,7 @@
 use log::trace;
 
-use crate::assets::structs::version_manifest::GameClass;
 use crate::assets::structs::version_manifest::{Action, GameRule};
+use crate::assets::structs::version_manifest::{GameClass, JvmClass};
 use crate::launcher::LauncherArgs;
 
 pub struct GameArguments;
@@ -9,19 +9,17 @@ pub struct JavaArguments;
 
 impl GameArguments {
     // If the rules are not met the function returns ""
-    pub fn parse_class_argument(launcher_arguments: &LauncherArgs, argument: GameClass) -> String {
+    pub fn parse_class_argument(launcher_arguments: &LauncherArgs, argument: &GameClass) -> String {
         trace!("Parsing class argument: {:?}", argument);
-        for rule in argument.rules {
+        argument.rules.iter().any(|rule| {
             trace!("Checking rule: {:?}", rule);
-            if !Self::match_rule(rule, launcher_arguments) {
-                return "".to_string();
-            };
-        }
+            !Self::match_rule(rule, launcher_arguments)
+        });
 
-        match argument.value {
+        match &argument.value {
             crate::assets::structs::version_manifest::Value::String(argument) => {
                 trace!("Parsing singular class argument: {:?}", &argument);
-                Self::parse_string_argument(launcher_arguments, argument)
+                Self::parse_string_argument(launcher_arguments, argument.to_string())
             }
 
             crate::assets::structs::version_manifest::Value::StringArray(arguments) => {
@@ -92,7 +90,7 @@ impl GameArguments {
         }
     }
 
-    fn match_rule(rule: GameRule, launcher_arguments: &LauncherArgs) -> bool {
+    fn match_rule(rule: &GameRule, launcher_arguments: &LauncherArgs) -> bool {
         // based of the 1.18 json
         match rule.action {
             Action::Allow => {
@@ -107,5 +105,15 @@ impl GameArguments {
             // no disallows yet
             Action::Disallow => panic!("no disallows have been implemented yet. Please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using"),
         }
+    }
+}
+
+impl JavaArguments {
+    pub fn parse_string_argument(launcher_arguments: &LauncherArgs, argument: String) -> String {
+        todo!()
+    }
+
+    pub fn parse_class_argument(launcher_arguments: &LauncherArgs, argument: &JvmClass) -> String {
+        todo!()
     }
 }
