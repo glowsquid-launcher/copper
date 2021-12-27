@@ -17,7 +17,7 @@ pub fn create_download_task(
     final_path: PathBuf,
     client: Option<Client>,
 ) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
-    debug!("Creating download task for {}", url);
+    trace!("Creating download task for {}", url);
     tokio::spawn(async move {
         let client = client
             .clone()

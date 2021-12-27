@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use log::{info, warn};
 use minecraft_rs::{
     assets::structs::launcher_meta::LauncherMeta,
-    launcher::{launch, AuthenticationDetails, LauncherArgs, RamSize},
+    launcher::{AuthenticationDetails, Launcher, RamSize},
 };
 
 pub async fn launch_minecraft(
@@ -33,7 +33,7 @@ pub async fn launch_minecraft(
         client_id: None,
         is_demo_user: false,
     };
-    let launcher_args = LauncherArgs {
+    let launcher = Launcher {
         assets_directory: root.join("assets"),
         authentication_details,
         custom_resolution: None,
@@ -57,9 +57,11 @@ pub async fn launch_minecraft(
         version_name: version_id,
         client_branding: "minecraft.rs".to_string(),
     };
-    let game_output = launch(launcher_args, None).await;
+
+    let game_output = launcher.launch(None).await;
     let mut out_reader = game_output.stdout;
     let mut err_reader = game_output.stderr;
+
     while let Some(line) = out_reader.next_line().await.unwrap() {
         info!("JAVA STDOUT: {}", line);
     }

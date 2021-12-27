@@ -83,28 +83,3 @@ pub enum Type {
     #[serde(rename = "snapshot")]
     Snapshot,
 }
-
-pub(crate) mod tests {
-    #[tokio::test]
-    pub async fn can_download_and_deserialize() {
-        use super::LauncherMeta;
-        use serde_json::Value;
-        let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
-
-        let response = reqwest::get(server_url)
-            .await
-            .unwrap()
-            .json::<LauncherMeta>()
-            .await
-            .unwrap();
-
-        let response_value = reqwest::get(server_url)
-            .await
-            .unwrap()
-            .json::<Value>()
-            .await
-            .unwrap();
-
-        assert_eq!(response.latest.release, response_value["latest"]["release"]);
-    }
-}

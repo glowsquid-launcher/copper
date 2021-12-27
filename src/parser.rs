@@ -3,7 +3,8 @@ use log::trace;
 
 use crate::assets::structs::version_manifest::{Action, GameRule, JvmRule, Value, VersionManifest};
 use crate::assets::structs::version_manifest::{GameClass, JvmClass};
-use crate::launcher::LauncherArgs;
+use crate::launcher::Launcher;
+
 #[cfg(target_os = "windows")]
 use winsafe::IsWindows10OrGreater;
 pub struct GameArguments;
@@ -11,47 +12,36 @@ pub struct JavaArguments;
 
 impl GameArguments {
     // If the rules are not met the function returns ""
-    pub fn parse_class_argument(launcher_arguments: &LauncherArgs, argument: &GameClass) -> String {
+    pub fn parse_class_argument(launcher_arguments: &Launcher, argument: &GameClass) -> String {
         trace!("Parsing class argument: {:?}", argument);
-        let rules_result = argument.rules.iter().any(|rule| {
+
+        let rules_passed = argument.rules.iter().any(|rule| {
             trace!("Checking rule: {:?}", rule);
             trace!(
                 "Rule matched: {:?}",
-                Self::match_rule(rule, launcher_arguments)
+                Self::check_rule(rule, launcher_arguments)
             );
-            Self::match_rule(rule, launcher_arguments)
+            Self::check_rule(rule, launcher_arguments)
         });
 
-        if !rules_result {
+        if !rules_passed {
             return "".to_string();
         }
 
-        match &argument.value {
-            crate::assets::structs::version_manifest::Value::String(argument) => {
-                trace!("Parsing singular class argument: {:?}", &argument);
-                Self::parse_string_argument(launcher_arguments, argument.to_string())
-            }
-
-            crate::assets::structs::version_manifest::Value::StringArray(arguments) => {
-                trace!("Parsing multi-argument class argument: {:?}", &arguments);
-                let args = arguments
-                    .iter()
-                    .map(|argument| {
-                        trace!("Parsing argument in multi-argument: {:?}", &argument);
-                        Self::parse_string_argument(launcher_arguments, argument.to_string())
-                    })
-                    .collect::<Vec<_>>();
-
-                args.join(" ")
-            }
-        }
+        Self::parse_string_argument(
+            launcher_arguments,
+            match &argument.value {
+                Value::String(str) => str.to_string(),
+                Value::StringArray(array) => array.join(" "),
+            },
+        )
     }
 
-    pub fn parse_string_argument(launcher_arguments: &LauncherArgs, argument: String) -> String {
+    pub fn parse_string_argument(launcher_arguments: &Launcher, argument: String) -> String {
         trace!("Parsing string argument: {:?}", &argument);
+
         return if argument.starts_with("${") && argument.ends_with("}") {
             let dynamic_argument = &argument[2..argument.len() - 1].to_string();
-
             Self::match_dynamic_argument(launcher_arguments, dynamic_argument).to_string()
         } else if argument == "--clientId" {
             if let Some(_) = &launcher_arguments.authentication_details.client_id {
@@ -64,8 +54,9 @@ impl GameArguments {
         };
     }
 
-    fn match_dynamic_argument(launcher_arguments: &LauncherArgs, dynamic_argument: &str) -> String {
-        // This is based of the 1.18 JSON. This assumes that all accounts are microsoft accounts (As Mojang accounts are being deprecated and soon :crab:ed out of existence).
+    fn match_dynamic_argument(launcher_arguments: &Launcher, dynamic_argument: &str) -> String {
+        //! This is based of the 1.18 JSON. This assumes that all accounts are microsoft accounts
+        //! (As Mojang accounts are being deprecated and soon erased from existence).
 
         trace!("Matching dynamic argument: {:?}", &dynamic_argument);
         let client_id = launcher_arguments
@@ -98,7 +89,7 @@ impl GameArguments {
         }
     }
 
-    fn match_rule(rule: &GameRule, launcher_arguments: &LauncherArgs) -> bool {
+    fn check_rule(rule: &GameRule, launcher_arguments: &Launcher) -> bool {
         // based of the 1.18 json
         match rule.action {
             Action::Allow => {
@@ -118,7 +109,7 @@ impl GameArguments {
 
 impl JavaArguments {
     pub async fn parse_string_argument(
-        launcher_arguments: &LauncherArgs,
+        launcher_arguments: &Launcher,
         version_manifest: &VersionManifest,
         argument: String,
     ) -> String {
@@ -145,12 +136,12 @@ impl JavaArguments {
     }
 
     pub async fn parse_class_argument(
-        launcher_arguments: &LauncherArgs,
+        launcher_arguments: &Launcher,
         version_manifest: &VersionManifest,
         argument: &JvmClass,
     ) -> String {
         for rule in &argument.rules {
-            if !Self::match_rule(rule, launcher_arguments) {
+            if !Self::check_rule(rule) {
                 return "".to_string();
             }
         }
@@ -166,8 +157,7 @@ impl JavaArguments {
         .await
     }
 
-    // launcher arguments may be needed in the future
-    fn match_rule(rule: &JvmRule, _launcher_arguments: &LauncherArgs) -> bool {
+    fn check_rule(rule: &JvmRule) -> bool {
         let mut current_allow = false;
 
         match rule.action {
@@ -214,7 +204,7 @@ impl JavaArguments {
 
     async fn create_classpath(
         version_manifest: &VersionManifest,
-        launcher_arguments: &LauncherArgs,
+        launcher_arguments: &Launcher,
     ) -> Vec<String> {
         let mut cp = vec![];
 
@@ -302,7 +292,7 @@ impl JavaArguments {
                             continue;
                         }
                     }
-                    _ => panic!("Unsupported OS"),
+                    _ => continue,
                 };
             }
         }
