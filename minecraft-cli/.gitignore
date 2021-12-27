@@ -1,4 +1,5 @@
 /target
 /tests-dir
 !/tests-dir/.gitkeep
+/.minecraft
 output.log

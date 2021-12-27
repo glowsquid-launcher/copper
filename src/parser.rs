@@ -1,3 +1,4 @@
+use dunce::canonicalize;
 use log::trace;
 
 use crate::assets::structs::version_manifest::{Action, GameRule, JvmRule, Value, VersionManifest};
@@ -14,7 +15,11 @@ impl GameArguments {
         trace!("Parsing class argument: {:?}", argument);
         let rules_result = argument.rules.iter().any(|rule| {
             trace!("Checking rule: {:?}", rule);
-            !Self::match_rule(rule, launcher_arguments)
+            trace!(
+                "Rule matched: {:?}",
+                Self::match_rule(rule, launcher_arguments)
+            );
+            Self::match_rule(rule, launcher_arguments)
         });
 
         if !rules_result {
@@ -39,9 +44,7 @@ impl GameArguments {
 
                 args.join(" ")
             }
-        };
-
-        todo!()
+        }
     }
 
     pub fn parse_string_argument(launcher_arguments: &LauncherArgs, argument: String) -> String {
@@ -77,7 +80,7 @@ impl GameArguments {
             "version_name" => launcher_arguments.version_name.to_owned(),
             "game_directory" => launcher_arguments.game_directory.to_owned().to_str().unwrap().to_owned(),
             "assets_root" => launcher_arguments.assets_directory.to_owned().to_str().unwrap().to_owned(),
-            "asset_index_name" => launcher_arguments.version_name.to_owned(),
+            "assets_index_name" => launcher_arguments.version_name.to_owned(),
             "auth_uuid" => launcher_arguments.authentication_details.uuid.to_owned(),
             "auth_access_token" => launcher_arguments.authentication_details.access_token.to_owned(),
             "clientid" => client_id,
@@ -100,9 +103,9 @@ impl GameArguments {
         match rule.action {
             Action::Allow => {
                 if let Some(_) = rule.features.is_demo_user {
-                    launcher_arguments.authentication_details.is_demo_user
+                    return launcher_arguments.authentication_details.is_demo_user
                 } else if let Some(_) = rule.features.has_custom_resolution {
-                    launcher_arguments.custom_resolution.is_some()
+                    return launcher_arguments.custom_resolution.is_some()
                 } else {
                     panic!("unrecognised rule action, please report to https://glowsquid-launcher/minecraft-rs/issues with the version you are using");
                 }
@@ -114,19 +117,19 @@ impl GameArguments {
 }
 
 impl JavaArguments {
-    pub fn parse_string_argument(
+    pub async fn parse_string_argument(
         launcher_arguments: &LauncherArgs,
         version_manifest: &VersionManifest,
         argument: String,
     ) -> String {
-        let classpath = Self::create_classpath(version_manifest, launcher_arguments);
+        let classpath = Self::create_classpath(version_manifest, launcher_arguments).await;
 
         argument
             .replace(
                 "${natives_directory}",
                 //TODO: Add compat with 1.16.5 which uses <version>/natives
-                &launcher_arguments
-                    .libraries_directory
+                &canonicalize(&launcher_arguments.libraries_directory)
+                    .unwrap()
                     .to_str()
                     .unwrap()
                     .to_string(),
@@ -137,11 +140,12 @@ impl JavaArguments {
                 "${classpath}",
                 classpath
                     .join(if cfg!(windows) { ";" } else { ":" })
+                    .replace("\\", "/")
                     .as_str(),
             )
     }
 
-    pub fn parse_class_argument(
+    pub async fn parse_class_argument(
         launcher_arguments: &LauncherArgs,
         version_manifest: &VersionManifest,
         argument: &JvmClass,
@@ -160,6 +164,7 @@ impl JavaArguments {
                 Value::StringArray(array) => array.join(" "),
             },
         )
+        .await
     }
 
     // launcher arguments may be needed in the future
@@ -178,7 +183,7 @@ impl JavaArguments {
                                         panic!("unrecognised windows version: {:?}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", ver);
                                     }
 
-                                    return IsWindows10OrGreater();
+                                    return IsWindows10OrGreater().unwrap_or(false);
                                 } else {
                                     true
                                 }
@@ -208,7 +213,7 @@ impl JavaArguments {
         current_allow
     }
 
-    fn create_classpath(
+    async fn create_classpath(
         version_manifest: &VersionManifest,
         launcher_arguments: &LauncherArgs,
     ) -> Vec<String> {
@@ -222,16 +227,25 @@ impl JavaArguments {
             }
 
             cp.push(
-                launcher_arguments
-                    .libraries_directory
-                    .join(library.downloads.artifact.path.as_ref().unwrap())
-                    .to_str()
-                    .unwrap()
-                    .to_owned(),
+                canonicalize(
+                    launcher_arguments
+                        .libraries_directory
+                        .join(library.downloads.artifact.path.as_ref().unwrap()),
+                )
+                .expect("failed to resolve library path")
+                .to_str()
+                .unwrap()
+                .to_owned(),
             );
         }
 
-        cp.push(launcher_arguments.jar_path.to_str().unwrap().to_owned());
+        cp.push(
+            canonicalize(&launcher_arguments.jar_path)
+                .expect("failed to resolve minecraft jar path")
+                .to_str()
+                .unwrap()
+                .to_owned(),
+        );
 
         cp
     }

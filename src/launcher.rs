@@ -5,13 +5,13 @@ use crate::assets::structs::version_manifest::VersionManifest;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use derive_builder::Builder;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use tokio::fs;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 #[derive(Default, Builder, Debug, Clone)]
 pub struct AuthenticationDetails {
-    pub session_id: String,
     pub username: String,
     pub uuid: String,
     pub access_token: String,
@@ -77,19 +77,45 @@ pub async fn launch(launcher_arguments: LauncherArgs, version_manifest: Option<V
 
     let game_args = parse_game_arguments(&launcher_arguments, &version_manifest);
     debug!("Game arguments: {:?}", &game_args);
-    let java_args = parse_java_arguments(&launcher_arguments, &version_manifest);
+    let java_args = parse_java_arguments(&launcher_arguments, &version_manifest).await;
     debug!("Java arguments: {:?}", &java_args);
+    debug!("main class: {}", &version_manifest.main_class);
 
-    let process = Command::new(&launcher_arguments.java_path)
+    let mut process = Command::new(&launcher_arguments.java_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .args(&java_args)
         .args(&game_args)
+        .arg(&version_manifest.main_class)
         .spawn()
         .expect("Failed to start minecraft");
+
+    let stdout = process.stdout.take().unwrap();
+    let stderr = process.stderr.take().unwrap();
+    let mut out_reader = BufReader::new(stdout).lines();
+    let mut err_reader = BufReader::new(stderr).lines();
+
+    let exit = tokio::spawn(async move {
+        let status = process
+            .wait()
+            .await
+            .expect("child process encountered an error");
+
+        debug!("child status was: {}", status);
+    });
+
+    while let Some(line) = out_reader.next_line().await.unwrap() {
+        debug!("JAVA STDOUT: {}", line);
+    }
+
+    while let Some(line) = err_reader.next_line().await.unwrap() {
+        warn!("JAVA STDERR: {}", line);
+    }
+
+    exit.await.unwrap();
 }
 
-fn parse_java_arguments(
+async fn parse_java_arguments(
     launcher_arguments: &LauncherArgs,
     version_manifest: &VersionManifest,
 ) -> Vec<String> {
@@ -99,6 +125,7 @@ fn parse_java_arguments(
         let formatted_arg = match arg {
             assets::structs::version_manifest::JvmElement::JvmClass(argument) => {
                 JavaArguments::parse_class_argument(&launcher_arguments, version_manifest, argument)
+                    .await
             }
             assets::structs::version_manifest::JvmElement::String(argument) => {
                 JavaArguments::parse_string_argument(
@@ -106,6 +133,7 @@ fn parse_java_arguments(
                     version_manifest,
                     argument.to_string(),
                 )
+                .await
             }
         };
 
