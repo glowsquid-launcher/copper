@@ -120,7 +120,7 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
     info!("Saved asset index");
 
     version
-        .save_manifest_json((&version_path / &format!("{}.json", &version.id)).to_path_buf())
+        .save_json((&version_path / &format!("{}.json", &version.id)).to_path_buf())
         .map_err(|_e| {
             anyhow!(
                 "Failed to save version manifest for version {}",

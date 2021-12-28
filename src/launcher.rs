@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 
@@ -35,7 +36,7 @@ pub struct RamSize {
 pub struct GameOutput {
     pub stdout: Lines<BufReader<ChildStdout>>,
     pub stderr: Lines<BufReader<ChildStderr>>,
-    pub exit_handle: JoinHandle<ExitStatus>,
+    pub exit_handle: JoinHandle<Option<ExitStatus>>,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -69,21 +70,21 @@ pub struct Launcher {
 }
 
 impl Launcher {
-    pub async fn launch(&self, version_manifest: Option<Version>) -> GameOutput {
+    pub async fn launch(
+        &self,
+        version_manifest: Option<Version>,
+    ) -> Result<GameOutput, Box<dyn Error>> {
         trace!("Launching minecraft");
 
         let version_manifest = match version_manifest {
             Some(manifest) => manifest,
             None => serde_json::from_str(
-                &fs::read_to_string(self.version_manifest_path.clone())
-                    .await
-                    .expect("Failed to read version manifest"),
-            )
-            .expect("Failed to parse version manifest"),
+                &fs::read_to_string(self.version_manifest_path.clone()).await?,
+            )?,
         };
 
         let game_args: Vec<String> = self
-            .parse_game_arguments(&version_manifest)
+            .parse_game_arguments(&version_manifest)?
             .into_iter()
             .filter(|arg| !arg.is_empty())
             .collect();
@@ -91,45 +92,61 @@ impl Launcher {
 
         let java_args: Vec<String> = self
             .parse_java_arguments(&version_manifest)
-            .await
+            .await?
             .into_iter()
             .filter(|arg| !arg.is_empty())
             .collect();
+
+        let main_class = version_manifest
+            .main_class
+            .as_ref()
+            .ok_or("could not get main class")?;
+
         debug!("Java arguments: {:?}", &java_args);
-        debug!("main class: {}", &version_manifest.main_class);
+        debug!("main class: {}", main_class);
 
         let mut process = Command::new(self.java_path.clone())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .args(&java_args)
-            .arg(&version_manifest.main_class)
+            .arg(main_class)
             .args(&game_args)
-            .spawn()
-            .expect("Failed to start minecraft");
+            .spawn()?;
 
-        let stdout = process.stdout.take().unwrap();
-        let stderr = process.stderr.take().unwrap();
+        let stdout = process
+            .stdout
+            .take()
+            .ok_or("could not get stdout from minecraft")?;
+
+        let stderr = process
+            .stderr
+            .take()
+            .ok_or("could not get stderr from minecraft")?;
+
         let out_reader = BufReader::new(stdout).lines();
         let err_reader = BufReader::new(stderr).lines();
 
-        let exit = tokio::spawn(async move {
-            process
-                .wait()
-                .await
-                .expect("the minecraft process encountered an error")
-        });
+        let exit = tokio::spawn(async move { process.wait().await.ok() });
 
-        GameOutput {
+        Ok(GameOutput {
             stderr: err_reader,
             stdout: out_reader,
             exit_handle: exit,
-        }
+        })
     }
 
-    async fn parse_java_arguments(&self, version_manifest: &Version) -> Vec<String> {
+    async fn parse_java_arguments(
+        &self,
+        version_manifest: &Version,
+    ) -> Result<Vec<String>, Box<dyn Error>> {
         let mut args: Vec<String> = vec![];
 
-        for arg in &version_manifest.arguments.jvm {
+        for arg in &version_manifest
+            .arguments
+            .as_ref()
+            .ok_or("could not get arguments")?
+            .jvm
+        {
             let formatted_arg = match arg {
                 assets::structs::version::JvmElement::JvmClass(argument) => {
                     JavaArguments::parse_class_argument(self, version_manifest, argument).await
@@ -144,16 +161,24 @@ impl Launcher {
                 }
             };
 
-            args.push(formatted_arg)
+            args.push(formatted_arg?);
         }
 
-        args
+        Ok(args)
     }
 
-    fn parse_game_arguments(&self, version_manifest: &Version) -> Vec<String> {
+    fn parse_game_arguments(
+        &self,
+        version_manifest: &Version,
+    ) -> Result<Vec<String>, Box<dyn Error>> {
         let mut args: Vec<String> = vec![];
 
-        for arg in &version_manifest.arguments.game {
+        for arg in &version_manifest
+            .arguments
+            .as_ref()
+            .ok_or("failed to get version arguments")?
+            .game
+        {
             let formatted_arg = match arg {
                 assets::structs::version::GameElement::GameClass(argument) => {
                     GameArguments::parse_class_argument(self, argument)
@@ -166,6 +191,6 @@ impl Launcher {
             args.push(formatted_arg)
         }
 
-        args
+        Ok(args)
     }
 }

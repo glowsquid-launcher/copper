@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use dunce::canonicalize;
 use log::trace;
 
@@ -112,10 +114,10 @@ impl JavaArguments {
         launcher_arguments: &Launcher,
         version_manifest: &Version,
         argument: String,
-    ) -> String {
-        let classpath = Self::create_classpath(version_manifest, launcher_arguments).await;
+    ) -> Result<String, Box<dyn Error>> {
+        let classpath = Self::create_classpath(version_manifest, launcher_arguments).await?;
 
-        argument
+        Ok(argument
             .replace(
                 "${natives_directory}",
                 //TODO: Add compat with 1.16.5 which uses <version>/natives
@@ -132,17 +134,17 @@ impl JavaArguments {
                 classpath
                     .join(if cfg!(windows) { ";" } else { ":" })
                     .as_str(),
-            )
+            ))
     }
 
     pub async fn parse_class_argument(
         launcher_arguments: &Launcher,
         version_manifest: &Version,
         argument: &JvmClass,
-    ) -> String {
+    ) -> Result<String, Box<dyn Error>> {
         for rule in &argument.rules {
             if !Self::check_rule(rule) {
-                return "".to_string();
+                return Ok("".to_string());
             }
         }
 
@@ -205,10 +207,14 @@ impl JavaArguments {
     async fn create_classpath(
         version_manifest: &Version,
         launcher_arguments: &Launcher,
-    ) -> Vec<String> {
+    ) -> Result<Vec<String>, Box<dyn Error>> {
         let mut cp = vec![];
 
-        for library in &version_manifest.libraries {
+        for library in version_manifest
+            .libraries
+            .as_ref()
+            .ok_or("no libraries found")?
+        {
             if let Some(rules) = &library.rules {
                 if !Version::check_library_rules(rules) {
                     continue;
@@ -305,6 +311,6 @@ impl JavaArguments {
                 .to_owned(),
         );
 
-        cp
+        Ok(cp)
     }
 }

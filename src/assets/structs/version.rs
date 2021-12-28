@@ -14,32 +14,36 @@ use crate::util::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Version {
-    pub arguments: Arguments,
+    pub arguments: Option<Arguments>,
     #[serde(rename = "assetIndex")]
-    pub asset_index: AssetIndex,
-    pub assets: String,
+    pub asset_index: Option<AssetIndex>,
+    pub assets: Option<String>,
     #[serde(rename = "complianceLevel")]
     pub compliance_level: Option<i64>,
-    pub downloads: VersionInfoDownloads,
-    pub id: String,
+    pub downloads: Option<VersionInfoDownloads>,
+    pub id: Option<String>,
     #[serde(rename = "javaVersion")]
-    pub java_version: JavaVersion,
-    pub libraries: Vec<Library>,
-    pub logging: Logging,
+    pub java_version: Option<JavaVersion>,
+    pub libraries: Option<Vec<Library>>,
+    pub logging: Option<Logging>,
     #[serde(rename = "mainClass")]
-    pub main_class: String,
+    pub main_class: Option<String>,
     #[serde(rename = "minimumLauncherVersion")]
-    pub minimum_launcher_version: i64,
+    pub minimum_launcher_version: Option<i64>,
     #[serde(rename = "releaseTime")]
-    pub release_time: String,
-    pub time: String,
+    pub release_time: Option<String>,
+    pub time: Option<String>,
     #[serde(rename = "type")]
-    pub version_info_type: String,
+    pub version_info_type: Option<String>,
 }
 
 impl Version {
-    pub fn save_manifest_json(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
-        trace!("Saving manifest to {}", save_path.display());
+    pub fn merge(&self, lower: Self) -> Self {
+        todo!()
+    }
+
+    pub fn save_json(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
+        trace!("Saving version to {}", save_path.display());
         // serialize the struct to a json string
         let json = serde_json::to_string(self)?;
         create_dir_all(save_path.parent().ok_or(
@@ -48,29 +52,38 @@ impl Version {
 
         trace!("Creating file at {}", save_path.display());
         let mut file = std::fs::File::create(&save_path)?;
-        trace!("Writing manifest to file");
+        trace!("Writing version file to file");
         file.write(json.as_bytes())?;
 
-        debug!("Saved manifest to {}", &save_path.display());
+        debug!("Saved version file to {}", &save_path.display());
         Ok(())
     }
 
     pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, Box<dyn Error>> {
         trace!("Downloading asset index");
         // Get json and return it
-        Ok(reqwest::get(&self.asset_index.url)
-            .await?
-            .json::<super::asset_index::AssetIndex>()
-            .await?)
+        Ok(reqwest::get(
+            &self
+                .asset_index
+                .as_ref()
+                .ok_or("No asset index provided")?
+                .url,
+        )
+        .await?
+        .json::<super::asset_index::AssetIndex>()
+        .await?)
     }
 
-    pub async fn download_libraries(&self, save_path: PathBuf) -> ListOfResultHandles {
+    pub async fn download_libraries(
+        &self,
+        save_path: PathBuf,
+    ) -> Result<ListOfResultHandles, Box<dyn Error>> {
         trace!("Downloading libraries");
         let client = create_client();
 
         let tasks = FuturesUnordered::new();
 
-        for library in &self.libraries {
+        for library in self.libraries.as_ref().ok_or("No libraries provided")? {
             // Check rules for the library to see if it should be downloaded
             if let Some(rules) = &library.rules {
                 trace!("Library {} has rules, checking them", library.name);
@@ -125,7 +138,7 @@ impl Version {
         }
 
         debug!("Created {} library download tasks", tasks.len());
-        tasks
+        Ok(tasks)
     }
 
     async fn run_downloads(
@@ -146,7 +159,10 @@ impl Version {
         }
     }
 
-    pub async fn start_download_libraries(&self, save_path: PathBuf) -> DownloadWatcher {
+    pub async fn start_download_libraries(
+        &self,
+        save_path: PathBuf,
+    ) -> Result<DownloadWatcher, Box<dyn Error>> {
         trace!("Starting download libraries");
         trace!("Creating progress watcher");
         let (progress_sender, progress_receiver) = watch::channel(DownloadProgress {
@@ -155,18 +171,24 @@ impl Version {
         });
 
         trace!("Creating download tasks");
-        let tasks = self.download_libraries(save_path).await;
+        let tasks = self.download_libraries(save_path).await?;
         trace!("Starting download tasks");
         let download_task = task::spawn(Self::run_downloads(tasks, progress_sender));
 
-        DownloadWatcher {
+        Ok(DownloadWatcher {
             progress_watcher: progress_receiver,
             download_task,
-        }
+        })
     }
 
     pub async fn download_client_jar(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
-        let url = self.downloads.client.url.clone();
+        let url = self
+            .downloads
+            .as_ref()
+            .ok_or("downloads were not provided")?
+            .client
+            .url
+            .clone();
         let task = tokio::spawn(create_download_task(url, save_path, None));
 
         // the ultimate jank
@@ -178,7 +200,13 @@ impl Version {
     }
 
     pub async fn download_server_jar(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
-        let url = self.downloads.server.url.clone();
+        let url = self
+            .downloads
+            .as_ref()
+            .ok_or("downloads were not provided")?
+            .server
+            .url
+            .clone();
         let task = tokio::spawn(create_download_task(url, save_path, None));
 
         // the ultimate jank
