@@ -78,7 +78,7 @@ impl Version {
         &self,
         save_path: PathBuf,
     ) -> Result<ListOfResultHandles, Box<dyn Error>> {
-        trace!("Downloading libraries");
+        debug!("Downloading libraries");
         let client = create_client();
 
         let tasks = FuturesUnordered::new();
@@ -86,13 +86,13 @@ impl Version {
         for library in self.libraries.as_ref().ok_or("No libraries provided")? {
             // Check rules for the library to see if it should be downloaded
             if let Some(rules) = &library.rules {
-                trace!("Library {} has rules, checking them", library.name);
+                debug!("Library {} has rules, checking them", library.name);
                 // if the rules are not satisfied, skip the library
                 if !Version::check_library_rules(rules) {
                     continue;
                 }
             }
-            trace!(
+            debug!(
                 "Library {} has no rules or the rules passed, downloading",
                 library.name
             );

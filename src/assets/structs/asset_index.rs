@@ -6,6 +6,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::{debug, trace};
 use serde::{Deserialize, Serialize};
+use tokio::fs::create_dir_all;
 use tokio::sync::watch::{self, Sender};
 use tokio::task;
 
@@ -30,11 +31,10 @@ impl AssetIndex {
         trace!("Serializing AssetIndex to JSON");
         let json = serde_json::to_string(self)?;
 
+        create_dir_all(&save_path.parent().ok_or("failed to get parent directory")?).await?;
+
         // create file and save it
-        debug!(
-            "Creating AssetIndex file at {}",
-            &save_path.to_str().unwrap()
-        );
+        debug!("Creating AssetIndex file at {}", &save_path.display());
         let mut file = std::fs::File::create(&save_path)?;
         debug!("Writing JSON to AssetIndex file");
         file.write(json.as_bytes())?;

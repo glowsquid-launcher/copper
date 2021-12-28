@@ -14,18 +14,14 @@ use tokio_retry::{strategy::FixedInterval, Retry};
 
 pub fn create_download_task(
     url: String,
-    final_path: PathBuf,
+    path: PathBuf,
     client: Option<Client>,
 ) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
     trace!("Creating download task for {}", url);
     tokio::spawn(async move {
         let client = client.clone().unwrap_or_else(create_client);
 
-        let final_path_str = final_path.to_string_lossy().into_owned();
-        let mut path_without_last_vec = final_path_str.split("/").collect::<Vec<&str>>();
-        path_without_last_vec.pop();
-        let path_without_last = path_without_last_vec.join("/");
-        create_dir_all(&path_without_last).await?;
+        create_dir_all(&path.parent().ok_or("failed to get parent directory")?).await?;
 
         // idk how to get rid of clone
         // hours wasted: 2
@@ -38,8 +34,8 @@ pub fn create_download_task(
 
         let mut response = Retry::spawn(retry_strategy, action).await?;
 
-        trace!("Creating file at {}", &final_path_str);
-        let mut file = tokio::fs::File::create(&final_path_str).await?;
+        trace!("Creating file at {}", &path.display());
+        let mut file = tokio::fs::File::create(&path).await?;
 
         trace!("Writing response to file");
         while let Some(chunk) = response.chunk().await? {
