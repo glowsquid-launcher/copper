@@ -19,9 +19,7 @@ pub fn create_download_task(
 ) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
     trace!("Creating download task for {}", url);
     tokio::spawn(async move {
-        let client = client
-            .clone()
-            .unwrap_or_else(|| Client::builder().build().unwrap());
+        let client = client.clone().unwrap_or_else(create_client);
 
         let final_path_str = final_path.to_string_lossy().into_owned();
         let mut path_without_last_vec = final_path_str.split("/").collect::<Vec<&str>>();

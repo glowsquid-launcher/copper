@@ -10,7 +10,7 @@ use minecraft_rs::util::DivPathBuf;
 pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<()> {
     let launcher_meta = LauncherMeta::download_meta()
         .await
-        .map_err(|_e| anyhow!("Failed to download launcher meta"))?;
+        .map_err(|err| anyhow!("Failed to download launcher meta: {}", err))?;
 
     let version_info = if version_id == "latest" {
         launcher_meta.latest.version_for_release(&launcher_meta)
@@ -22,12 +22,15 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
             .ok_or(anyhow!("Version {} not found", version_id))?
     };
 
-    let version = version_info.version().await.map_err(|_e| {
+    let version = version_info.version().await.map_err(|err| {
         anyhow!(
-            "Failed to download version manifest for version {}",
-            &version_info.id
+            "Failed to download version manifest for version {}: {}",
+            &version_info.id,
+            err
         )
     })?;
+
+    let id = version.id.as_ref().ok_or(anyhow!("Version id not found"))?;
 
     info!(
         "Downloaded version manifest for version {}",
@@ -36,7 +39,7 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
 
     let root_path = DivPathBuf(PathBuf::from(root));
     let libraries_path = &root_path / "libraries";
-    let version_path = &root_path / "versions" / &version.id;
+    let version_path = &root_path / "versions" / &id;
 
     let bars = MultiProgress::new();
     let style = ProgressStyle::default_bar()
@@ -53,12 +56,14 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
 
     let mut libraries_watcher = version
         .start_download_libraries(libraries_path.to_path_buf())
-        .await;
+        .await
+        .map_err(|err| anyhow!("Failed to download libraries: {}", err))?;
 
-    let asset_index = version.asset_index().await.map_err(|_e| {
+    let asset_index = version.asset_index().await.map_err(|err| {
         anyhow!(
-            "Failed to download asset index for version {}",
-            &version_info.id
+            "Failed to download asset index for version {}: {}",
+            &version_info.id,
+            err
         )
     })?;
 
@@ -103,7 +108,7 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
 
     libraries
         .await?
-        .map_err(|_e| anyhow!("Failed to download libraries"))?;
+        .map_err(|_err| anyhow!("Failed to download libraries"))?;
 
     assets
         .await?
@@ -115,25 +120,26 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
                 .to_path_buf(),
         )
         .await
-        .map_err(|_e| anyhow!("failed to save asset index"))?;
+        .map_err(|err| anyhow!("failed to save asset index: {}", err))?;
 
     info!("Saved asset index");
 
     version
-        .save_json((&version_path / &format!("{}.json", &version.id)).to_path_buf())
-        .map_err(|_e| {
+        .save_json((&version_path / &format!("{}.json", &id)).to_path_buf())
+        .map_err(|err| {
             anyhow!(
-                "Failed to save version manifest for version {}",
-                &version.id
+                "Failed to save version manifest for version {}: {}",
+                &id,
+                err
             )
         })?;
 
     info!("Saved the version manifest");
 
     version
-        .download_client_jar((&version_path / &format!("{}.jar", &version.id)).to_path_buf())
+        .download_client_jar((&version_path / &format!("{}.jar", &id)).to_path_buf())
         .await
-        .map_err(|_e| anyhow!("Failed to download client jar for version {}", &version.id))?;
+        .map_err(|err| anyhow!("Failed to download client jar for version {}: {}", &id, err))?;
 
     info!("Saved the client jar");
 

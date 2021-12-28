@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::{anyhow, Result};
 use log::{info, warn};
 use minecraft_rs::{
     assets::structs::launcher_meta::LauncherMeta,
@@ -12,19 +13,23 @@ pub async fn launch_minecraft(
     access_token: String,
     xbox_uid: String,
     root: PathBuf,
-) {
+) -> Result<()> {
     info!("Launching minecraft");
+
     let java_dir = if cfg!(windows) {
-        java_locator::locate_file("javaw.exe").unwrap()
+        java_locator::locate_file("javaw.exe")?
     } else {
-        java_locator::locate_file("java").unwrap()
+        java_locator::locate_file("java")?
     };
+
+    let java_path = PathBuf::from(java_dir).join(if cfg!(windows) { "javaw.exe" } else { "java" });
+
     let version_id = LauncherMeta::download_meta()
         .await
-        .expect("Failed to download launcher meta")
+        .map_err(|err| anyhow!("Failed to download launcher meta: {}", err))?
         .latest
         .release;
-    let java_path = PathBuf::from(java_dir).join(if cfg!(windows) { "javaw.exe" } else { "java" });
+
     let authentication_details = AuthenticationDetails {
         username,
         uuid,
@@ -33,6 +38,7 @@ pub async fn launch_minecraft(
         client_id: None,
         is_demo_user: false,
     };
+
     let launcher = Launcher {
         assets_directory: root.join("assets"),
         authentication_details,
@@ -58,15 +64,20 @@ pub async fn launch_minecraft(
         client_branding: "minecraft.rs".to_string(),
     };
 
-    let game_output = launcher.launch(None).await;
+    let game_output = launcher
+        .launch(None)
+        .await
+        .map_err(|err| anyhow!("Failed to launch minecraft: {}", err))?;
     let mut out_reader = game_output.stdout;
     let mut err_reader = game_output.stderr;
 
-    while let Some(line) = out_reader.next_line().await.unwrap() {
+    while let Some(line) = out_reader.next_line().await? {
         info!("JAVA STDOUT: {}", line);
     }
-    while let Some(line) = err_reader.next_line().await.unwrap() {
+    while let Some(line) = err_reader.next_line().await? {
         warn!("JAVA STDERR: {}", line);
     }
-    game_output.exit_handle.await.unwrap();
+    game_output.exit_handle.await?;
+
+    Ok(())
 }

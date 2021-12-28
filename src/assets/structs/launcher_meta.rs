@@ -77,8 +77,7 @@ impl LauncherMeta {
         debug!("Downloading launcher meta from {}", server_url);
 
         Ok(reqwest::get(server_url)
-            .await
-            .unwrap()
+            .await?
             .json::<LauncherMeta>()
             .await?)
     }

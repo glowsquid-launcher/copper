@@ -227,7 +227,7 @@ impl JavaArguments {
                         .libraries_directory
                         .join(library.downloads.artifact.path.as_ref().unwrap()),
                 )
-                .expect("failed to resolve library path")
+                .map_err(|err| format!("failed to resolve library path: {}", err))?
                 .to_str()
                 .unwrap()
                 .to_owned(),
@@ -243,7 +243,7 @@ impl JavaArguments {
                                         .libraries_directory
                                         .join(windows.path.as_ref().unwrap()),
                                 )
-                                .expect("failed to resolve library path")
+                                .map_err(|err| format!("failed to resolve library path: {}", err))?
                                 .to_str()
                                 .unwrap()
                                 .to_owned(),
@@ -260,7 +260,7 @@ impl JavaArguments {
                                         .libraries_directory
                                         .join(macos.path.as_ref().unwrap()),
                                 )
-                                .expect("failed to resolve library path")
+                                .map_err(|err| format!("failed to resolve library path: {}", err))?
                                 .to_str()
                                 .unwrap()
                                 .to_owned(),
@@ -272,7 +272,7 @@ impl JavaArguments {
                                         .libraries_directory
                                         .join(osx.path.as_ref().unwrap()),
                                 )
-                                .expect("failed to resolve library path")
+                                .map_err(|err| format!("failed to resolve library path: {}", err))?
                                 .to_str()
                                 .unwrap()
                                 .to_owned(),
@@ -289,7 +289,7 @@ impl JavaArguments {
                                         .libraries_directory
                                         .join(linux.path.as_ref().unwrap()),
                                 )
-                                .expect("failed to resolve library path")
+                                .map_err(|err| format!("failed to resolve library path: {}", err))?
                                 .to_str()
                                 .unwrap()
                                 .to_owned(),
@@ -305,7 +305,7 @@ impl JavaArguments {
 
         cp.push(
             canonicalize(&launcher_arguments.jar_path)
-                .expect("failed to resolve minecraft jar path")
+                .map_err(|err| format!("failed to resolve library path: {}", err))?
                 .to_str()
                 .unwrap()
                 .to_owned(),

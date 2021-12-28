@@ -18,7 +18,7 @@ pub async fn handle_args(args: Args) -> Result<()> {
             username,
             uuid,
             xbox_uid,
-        } => launch_minecraft(username, uuid, access_token, xbox_uid, root).await,
+        } => launch_minecraft(username, uuid, access_token, xbox_uid, root).await?,
     }
     Ok(())
 }

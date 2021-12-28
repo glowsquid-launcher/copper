@@ -271,8 +271,8 @@ impl Version {
         let sub_path = mappings_class
         .path
         .as_ref()
-        .ok_or("library doesnt have a path. Please report this bug to https://github.com/glowsquid-launcher/glowsquid/issues")
-        .unwrap();
+        .expect("library doesnt have a path. Please report this bug to https://github.com/glowsquid-launcher/glowsquid/issues");
+
         let full_path = save_path.join(sub_path);
         debug!(
             "Creating download task for library {}, saving to {}",
