@@ -14,6 +14,7 @@ pub async fn launch_minecraft(
     access_token: String,
     xbox_uid: String,
     root: PathBuf,
+    version_id: String,
 ) -> Result<()> {
     info!("Launching minecraft");
 
@@ -25,11 +26,15 @@ pub async fn launch_minecraft(
 
     let java_path = PathBuf::from(java_dir).join(if cfg!(windows) { "javaw.exe" } else { "java" });
 
-    let version_id = LauncherMeta::download_meta()
-        .await
-        .map_err(|err| anyhow!("Failed to download launcher meta: {}", err))?
-        .latest
-        .release;
+    let id = if version_id == "latest" {
+        LauncherMeta::download_meta()
+            .await
+            .map_err(|err| anyhow!("Failed to download launcher meta: {}", err))?
+            .latest
+            .release
+    } else {
+        version_id
+    };
 
     let authentication_details = AuthenticationDetails {
         username,
@@ -48,8 +53,8 @@ pub async fn launch_minecraft(
         is_snapshot: false,
         jar_path: (&root)
             .join("versions")
-            .join(&version_id)
-            .join(format!("{}.jar", &version_id)),
+            .join(&id)
+            .join(format!("{}.jar", &id)),
         java_path,
         launcher_name: "minecraft.rs".to_string(),
         libraries_directory: root.join("libraries"),
@@ -59,9 +64,9 @@ pub async fn launch_minecraft(
         },
         version_manifest_path: root
             .join("versions")
-            .join(&version_id)
-            .join(format!("{}.json", &version_id)),
-        version_name: version_id,
+            .join(&id)
+            .join(format!("{}.json", &id)),
+        version_name: id,
         client_branding: "minecraft.rs".to_string(),
     };
 
