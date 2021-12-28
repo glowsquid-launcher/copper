@@ -1,8 +1,8 @@
 use dunce::canonicalize;
 use log::trace;
 
-use crate::assets::structs::version_manifest::{Action, GameRule, JvmRule, Value, VersionManifest};
-use crate::assets::structs::version_manifest::{GameClass, JvmClass};
+use crate::assets::structs::version::{Action, GameRule, JvmRule, Value, Version};
+use crate::assets::structs::version::{GameClass, JvmClass};
 use crate::launcher::Launcher;
 
 #[cfg(target_os = "windows")]
@@ -110,7 +110,7 @@ impl GameArguments {
 impl JavaArguments {
     pub async fn parse_string_argument(
         launcher_arguments: &Launcher,
-        version_manifest: &VersionManifest,
+        version_manifest: &Version,
         argument: String,
     ) -> String {
         let classpath = Self::create_classpath(version_manifest, launcher_arguments).await;
@@ -137,7 +137,7 @@ impl JavaArguments {
 
     pub async fn parse_class_argument(
         launcher_arguments: &Launcher,
-        version_manifest: &VersionManifest,
+        version_manifest: &Version,
         argument: &JvmClass,
     ) -> String {
         for rule in &argument.rules {
@@ -203,14 +203,14 @@ impl JavaArguments {
     }
 
     async fn create_classpath(
-        version_manifest: &VersionManifest,
+        version_manifest: &Version,
         launcher_arguments: &Launcher,
     ) -> Vec<String> {
         let mut cp = vec![];
 
         for library in &version_manifest.libraries {
             if let Some(rules) = &library.rules {
-                if !VersionManifest::check_library_rules(rules) {
+                if !Version::check_library_rules(rules) {
                     continue;
                 }
             }

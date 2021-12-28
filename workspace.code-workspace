@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "minecraft-cli"
+		}
+	],
+	"settings": {
+		"conventionalCommits.scopes": [
+			"deps",
+			"assets",
+			"standalone",
+			"launcher",
+			"parser"
+		]
+	}
+}

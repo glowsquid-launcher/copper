@@ -12,7 +12,7 @@ This is meant to be used as a library, but a standalone is also in the works (ma
 
 Testing basically works by:
 
-- Run single test
-- See if output makes sense
+- run something in minecraft CLI
+- see if it makes sense
 
 What makes sense should make sense for the launcher

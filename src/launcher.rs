@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 
-use crate::assets::structs::version_manifest::VersionManifest;
+use crate::assets::structs::version::Version;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use log::{debug, trace};
@@ -69,7 +69,7 @@ pub struct Launcher {
 }
 
 impl Launcher {
-    pub async fn launch(&self, version_manifest: Option<VersionManifest>) -> GameOutput {
+    pub async fn launch(&self, version_manifest: Option<Version>) -> GameOutput {
         trace!("Launching minecraft");
 
         let version_manifest = match version_manifest {
@@ -126,15 +126,15 @@ impl Launcher {
         }
     }
 
-    async fn parse_java_arguments(&self, version_manifest: &VersionManifest) -> Vec<String> {
+    async fn parse_java_arguments(&self, version_manifest: &Version) -> Vec<String> {
         let mut args: Vec<String> = vec![];
 
         for arg in &version_manifest.arguments.jvm {
             let formatted_arg = match arg {
-                assets::structs::version_manifest::JvmElement::JvmClass(argument) => {
+                assets::structs::version::JvmElement::JvmClass(argument) => {
                     JavaArguments::parse_class_argument(self, version_manifest, argument).await
                 }
-                assets::structs::version_manifest::JvmElement::String(argument) => {
+                assets::structs::version::JvmElement::String(argument) => {
                     JavaArguments::parse_string_argument(
                         self,
                         version_manifest,
@@ -150,15 +150,15 @@ impl Launcher {
         args
     }
 
-    fn parse_game_arguments(&self, version_manifest: &VersionManifest) -> Vec<String> {
+    fn parse_game_arguments(&self, version_manifest: &Version) -> Vec<String> {
         let mut args: Vec<String> = vec![];
 
         for arg in &version_manifest.arguments.game {
             let formatted_arg = match arg {
-                assets::structs::version_manifest::GameElement::GameClass(argument) => {
+                assets::structs::version::GameElement::GameClass(argument) => {
                     GameArguments::parse_class_argument(self, argument)
                 }
-                assets::structs::version_manifest::GameElement::String(argument) => {
+                assets::structs::version::GameElement::String(argument) => {
                     GameArguments::parse_string_argument(self, argument.to_string())
                 }
             };

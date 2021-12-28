@@ -22,7 +22,7 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
             .ok_or(anyhow!("Version {} not found", version_id))?
     };
 
-    let version = version_info.version_manifest().await.map_err(|_e| {
+    let version = version_info.version().await.map_err(|_e| {
         anyhow!(
             "Failed to download version manifest for version {}",
             &version_info.id
