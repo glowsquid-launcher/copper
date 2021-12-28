@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use tokio::io::AsyncBufReadExt;
 
 use anyhow::{anyhow, Result};
 use log::{info, warn};
@@ -70,13 +71,27 @@ pub async fn launch_minecraft(
         .map_err(|err| anyhow!("Failed to launch minecraft: {}", err))?;
     let mut out_reader = game_output.stdout;
     let mut err_reader = game_output.stderr;
+    let mut out_buf = vec![];
+    let mut err_buf = vec![];
 
-    while let Some(line) = out_reader.next_line().await? {
+    while let Ok(_) = out_reader.read_until(b'\n', &mut out_buf).await {
+        if out_buf.is_empty() {
+            break;
+        }
+        let line = String::from_utf8_lossy(&out_buf);
         info!("JAVA STDOUT: {}", line);
+        out_buf.clear();
     }
-    while let Some(line) = err_reader.next_line().await? {
+
+    while let Ok(_) = err_reader.read_until(b'\n', &mut err_buf).await {
+        if err_buf.is_empty() {
+            break;
+        }
+        let line = String::from_utf8_lossy(&err_buf);
         warn!("JAVA STDERR: {}", line);
+        err_buf.clear();
     }
+
     game_output.exit_handle.await?;
 
     Ok(())

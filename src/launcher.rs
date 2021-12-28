@@ -7,7 +7,7 @@ use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use log::{debug, trace};
 use tokio::fs;
-use tokio::io::{AsyncBufReadExt, BufReader, Lines};
+use tokio::io::BufReader;
 use tokio::process::{ChildStderr, ChildStdout, Command};
 use tokio::task::JoinHandle;
 
@@ -34,8 +34,8 @@ pub struct RamSize {
 }
 
 pub struct GameOutput {
-    pub stdout: Lines<BufReader<ChildStdout>>,
-    pub stderr: Lines<BufReader<ChildStderr>>,
+    pub stdout: BufReader<ChildStdout>,
+    pub stderr: BufReader<ChildStderr>,
     pub exit_handle: JoinHandle<Option<ExitStatus>>,
 }
 
@@ -123,8 +123,8 @@ impl Launcher {
             .take()
             .ok_or("could not get stderr from minecraft")?;
 
-        let out_reader = BufReader::new(stdout).lines();
-        let err_reader = BufReader::new(stderr).lines();
+        let out_reader = BufReader::new(stdout);
+        let err_reader = BufReader::new(stderr);
 
         let exit = tokio::spawn(async move { process.wait().await.ok() });
 

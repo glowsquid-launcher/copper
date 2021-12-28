@@ -3,3 +3,4 @@
 !/tests-dir/.gitkeep
 /.minecraft
 output.log
+/logs
