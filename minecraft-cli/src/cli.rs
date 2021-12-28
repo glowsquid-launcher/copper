@@ -13,12 +13,12 @@ pub async fn handle_args(args: Args) -> Result<()> {
         } => download_deps(root, version_id).await?,
         Args::Launch {
             root,
-            version: _version_id,
+            version: version_id,
             access_token,
             username,
             uuid,
             xbox_uid,
-        } => launch_minecraft(username, uuid, access_token, xbox_uid, root).await?,
+        } => launch_minecraft(username, uuid, access_token, xbox_uid, root, version_id).await?,
     }
     Ok(())
 }
