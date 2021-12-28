@@ -7,8 +7,7 @@
 [![forthebadge](https://forthebadge.com/images/badges/contains-tasty-spaghetti-code.svg)](https://forthebadge.com)
 [![forthebadge](https://forthebadge.com/images/badges/made-with-rust.svg)](https://forthebadge.com)
 [![forthebadge](https://forthebadge.com/images/badges/mom-made-pizza-rolls.svg)](https://forthebadge.com)
-
-I've spent [![wakatime](https://wakatime.com/badge/user/3f7d90dc-cc71-4418-adaf-df401032c359/project/d513836c-e963-4935-ab91-2cf89890660b.svg)](https://wakatime.com/badge/user/3f7d90dc-cc71-4418-adaf-df401032c359/project/d513836c-e963-4935-ab91-2cf89890660b?style=for-the-badge) on this so pls use it :)
+[![wakatime](https://wakatime.com/badge/github/glowsquid-launcher/minecraft-rs.svg?style=for-the-badge)](https://wakatime.com/badge/github/glowsquid-launcher/minecraft-rs)
 
 This is meant to be a low-level structural launcher where everything is done separately.
 You don't launch and let it download the assets. You first download the assets and then launch.
