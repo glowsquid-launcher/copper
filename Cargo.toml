@@ -1,5 +1,5 @@
 [package]
-name = "minecraft-rs"
+name = "copper"
 version = "0.1.0"
 edition = "2021"
 authors = ["suyashtnt <suyashtnt@gmail.com>"]

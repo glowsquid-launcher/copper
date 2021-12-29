@@ -1,4 +1,4 @@
-# minecraft.rs
+# copper
 
 ## A low-ish rust minecraft launcher
 
