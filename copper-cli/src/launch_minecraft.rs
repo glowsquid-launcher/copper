@@ -2,11 +2,11 @@ use std::path::PathBuf;
 use tokio::io::AsyncBufReadExt;
 
 use anyhow::{anyhow, Result};
-use log::{info, warn};
-use minecraft_rs::{
+use copper::{
     assets::structs::launcher_meta::LauncherMeta,
     launcher::{AuthenticationDetails, Launcher, RamSize},
 };
+use log::{info, warn};
 
 pub async fn launch_minecraft(
     username: String,

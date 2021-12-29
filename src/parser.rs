@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use dunce::canonicalize;
-use log::trace;
+use log::{debug, trace};
 
 use crate::assets::structs::version::{Action, GameRule, JvmRule, Value, Version};
 use crate::assets::structs::version::{GameClass, JvmClass};
@@ -13,30 +13,28 @@ pub struct GameArguments;
 pub struct JavaArguments;
 
 impl GameArguments {
-    // If the rules are not met the function returns ""
-    pub fn parse_class_argument(launcher_arguments: &Launcher, argument: &GameClass) -> String {
-        trace!("Parsing class argument: {:?}", argument);
+    pub fn parse_class_argument(
+        launcher_arguments: &Launcher,
+        argument: &GameClass,
+    ) -> Option<String> {
+        debug!("Parsing class argument: {:?}", argument);
 
         let rules_passed = argument.rules.iter().any(|rule| {
-            trace!("Checking rule: {:?}", rule);
-            trace!(
-                "Rule matched: {:?}",
-                Self::check_rule(rule, launcher_arguments)
-            );
+            debug!("Checking rule: {:?}", rule);
             Self::check_rule(rule, launcher_arguments)
         });
 
         if !rules_passed {
-            return "".to_string();
+            return None;
         }
 
-        Self::parse_string_argument(
+        Some(Self::parse_string_argument(
             launcher_arguments,
             match &argument.value {
                 Value::String(str) => str.to_string(),
                 Value::StringArray(array) => array.join(" "),
             },
-        )
+        ))
     }
 
     pub fn parse_string_argument(launcher_arguments: &Launcher, argument: String) -> String {
@@ -141,22 +139,24 @@ impl JavaArguments {
         launcher_arguments: &Launcher,
         version_manifest: &Version,
         argument: &JvmClass,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<Option<String>, Box<dyn Error>> {
         for rule in &argument.rules {
             if !Self::check_rule(rule) {
-                return Ok("".to_string());
+                return Ok(None);
             }
         }
 
-        Self::parse_string_argument(
-            launcher_arguments,
-            version_manifest,
-            match &argument.value {
-                Value::String(str) => str.to_string(),
-                Value::StringArray(array) => array.join(" "),
-            },
-        )
-        .await
+        Ok(Some(
+            Self::parse_string_argument(
+                launcher_arguments,
+                version_manifest,
+                match &argument.value {
+                    Value::String(str) => str.to_string(),
+                    Value::StringArray(array) => array.join(" "),
+                },
+            )
+            .await?,
+        ))
     }
 
     fn check_rule(rule: &JvmRule) -> bool {

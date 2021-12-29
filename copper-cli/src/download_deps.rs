@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use tokio::task::JoinHandle;
 
 use anyhow::{anyhow, Result};
-use minecraft_rs::assets::structs::launcher_meta::LauncherMeta;
-use minecraft_rs::util::DivPathBuf;
+use copper::assets::structs::launcher_meta::LauncherMeta;
+use copper::util::DivPathBuf;
 
 pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<()> {
     let launcher_meta = LauncherMeta::download_meta()

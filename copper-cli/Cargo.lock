@@ -123,6 +123,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "copper"
+version = "0.1.0"
+dependencies = [
+ "dunce",
+ "futures",
+ "log",
+ "merge",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-retry",
+ "winsafe",
+]
+
+[[package]]
+name = "copper-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "copper",
+ "fern",
+ "futures",
+ "indicatif",
+ "java-locator",
+ "log",
+ "structopt",
+ "tokio",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -550,38 +582,6 @@ name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
-
-[[package]]
-name = "minecraft-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "fern",
- "futures",
- "indicatif",
- "java-locator",
- "log",
- "minecraft-rs",
- "structopt",
- "tokio",
-]
-
-[[package]]
-name = "minecraft-rs"
-version = "0.1.0"
-dependencies = [
- "dunce",
- "futures",
- "log",
- "merge",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tokio-retry",
- "winsafe",
-]
 
 [[package]]
 name = "mio"

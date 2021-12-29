@@ -92,6 +92,7 @@ impl Version {
                     continue;
                 }
             }
+
             debug!(
                 "Library {} has no rules or the rules passed, downloading",
                 library.name

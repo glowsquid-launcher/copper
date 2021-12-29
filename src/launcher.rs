@@ -83,19 +83,10 @@ impl Launcher {
             )?,
         };
 
-        let game_args: Vec<String> = self
-            .parse_game_arguments(&version_manifest)?
-            .into_iter()
-            .filter(|arg| !arg.is_empty())
-            .collect();
+        let game_args = self.parse_game_arguments(&version_manifest)?;
         debug!("Game arguments: {:?}", &game_args);
 
-        let java_args: Vec<String> = self
-            .parse_java_arguments(&version_manifest)
-            .await?
-            .into_iter()
-            .filter(|arg| !arg.is_empty())
-            .collect();
+        let java_args = self.parse_java_arguments(&version_manifest).await?;
 
         let main_class = version_manifest
             .main_class
@@ -149,19 +140,21 @@ impl Launcher {
         {
             let formatted_arg = match arg {
                 assets::structs::version::JvmElement::JvmClass(argument) => {
-                    JavaArguments::parse_class_argument(self, version_manifest, argument).await
+                    JavaArguments::parse_class_argument(self, version_manifest, argument).await?
                 }
-                assets::structs::version::JvmElement::String(argument) => {
+                assets::structs::version::JvmElement::String(argument) => Some(
                     JavaArguments::parse_string_argument(
                         self,
                         version_manifest,
                         argument.to_string(),
                     )
-                    .await
-                }
+                    .await?,
+                ),
             };
 
-            args.push(formatted_arg?);
+            if let Some(arg) = formatted_arg {
+                args.push(arg);
+            }
         }
 
         Ok(args)
@@ -183,12 +176,15 @@ impl Launcher {
                 assets::structs::version::GameElement::GameClass(argument) => {
                     GameArguments::parse_class_argument(self, argument)
                 }
-                assets::structs::version::GameElement::String(argument) => {
-                    GameArguments::parse_string_argument(self, argument.to_string())
-                }
+
+                assets::structs::version::GameElement::String(argument) => Some(
+                    GameArguments::parse_string_argument(self, argument.to_string()),
+                ),
             };
 
-            args.push(formatted_arg)
+            if let Some(arg) = formatted_arg {
+                args.push(arg);
+            }
         }
 
         Ok(args)
