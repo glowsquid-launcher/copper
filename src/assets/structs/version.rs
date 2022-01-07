@@ -56,20 +56,20 @@ impl Version {
             version_info_type: None,
         };
 
-        // arguments merging (vector merging)
+        // arguments (vector merging)
         if let Some(arguments) = lower.arguments {
             let current_arguments = self.arguments.unwrap_or(Arguments {
                 game: vec![],
                 jvm: vec![],
             });
 
-            let jvm: Vec<JvmElement> = current_arguments
+            let jvm = current_arguments
                 .jvm
                 .into_iter()
                 .chain(arguments.jvm.into_iter())
                 .collect();
 
-            let game: Vec<GameElement> = current_arguments
+            let game = current_arguments
                 .game
                 .into_iter()
                 .chain(arguments.game.into_iter())
@@ -78,10 +78,49 @@ impl Version {
             merged.arguments = Some(Arguments { game, jvm })
         }
 
-        // asset index merging (overriding)
-        if let None = self.asset_index {
-            merged.asset_index = lower.asset_index;
-        }
+        // asset (overriding)
+        merged.asset_index = self.asset_index.or(lower.asset_index);
+
+        // asset (overriding)
+        merged.assets = self.assets.or(lower.assets);
+
+        // compliance (overriding)
+        merged.compliance_level = self.compliance_level.or(lower.compliance_level);
+
+        // download (overriding)
+        merged.downloads = self.downloads.or(lower.downloads);
+
+        // id (overriding)
+        merged.id = self.id.or(lower.id);
+
+        // java version (overriding)
+        merged.java_version = self.java_version.or(lower.java_version);
+
+        // library (combining)
+        merged.libraries = Some(
+            self.libraries
+                .unwrap_or(vec![])
+                .into_iter()
+                .chain(lower.libraries.unwrap_or(vec![]).into_iter())
+                .collect(),
+        );
+
+        // main class (overriding)
+        merged.main_class = self.main_class.or(lower.main_class);
+
+        // minimum launcher version (overriding)
+        merged.minimum_launcher_version = self
+            .minimum_launcher_version
+            .or(lower.minimum_launcher_version);
+
+        // release time (overriding)
+        merged.release_time = self.release_time.or(lower.release_time);
+
+        // time (overriding)
+        merged.time = self.time.or(lower.time);
+
+        // version info type (overriding)
+        merged.version_info_type = self.version_info_type.or(lower.version_info_type);
 
         merged
     }
