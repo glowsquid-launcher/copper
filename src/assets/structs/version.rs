@@ -38,21 +38,66 @@ pub struct Version {
 }
 
 impl Version {
-    pub fn merge(&self, lower: Self) -> Self {
-        todo!()
+    pub fn merge(self, lower: Self) -> Self {
+        let mut merged = Self {
+            arguments: None,
+            asset_index: None,
+            assets: None,
+            compliance_level: None,
+            downloads: None,
+            id: None,
+            java_version: None,
+            libraries: None,
+            logging: None,
+            main_class: None,
+            minimum_launcher_version: None,
+            release_time: None,
+            time: None,
+            version_info_type: None,
+        };
+
+        // arguments merging (vector merging)
+        if let Some(arguments) = lower.arguments {
+            let current_arguments = self.arguments.unwrap_or(Arguments {
+                game: vec![],
+                jvm: vec![],
+            });
+
+            let jvm: Vec<JvmElement> = current_arguments
+                .jvm
+                .into_iter()
+                .chain(arguments.jvm.into_iter())
+                .collect();
+
+            let game: Vec<GameElement> = current_arguments
+                .game
+                .into_iter()
+                .chain(arguments.game.into_iter())
+                .collect();
+
+            merged.arguments = Some(Arguments { game, jvm })
+        }
+
+        // asset index merging (overriding)
+        if let None = self.asset_index {
+            merged.asset_index = lower.asset_index;
+        }
+
+        merged
     }
 
     pub fn save_json(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
-        trace!("Saving version to {}", save_path.display());
+        debug!("Saving version to {}", save_path.display());
         // serialize the struct to a json string
         let json = serde_json::to_string(self)?;
+        trace!("version JSON: {}", json);
         create_dir_all(save_path.parent().ok_or(
             "save_path doesnt have a parent. Make sure you include the {version}.json bit at the end",
         )?)?;
 
-        trace!("Creating file at {}", save_path.display());
+        debug!("Creating file at {}", save_path.display());
         let mut file = std::fs::File::create(&save_path)?;
-        trace!("Writing version file to file");
+        debug!("Writing version file to file");
         file.write(json.as_bytes())?;
 
         debug!("Saved version file to {}", &save_path.display());

@@ -1,18 +1,14 @@
 {
-    "conventionalCommits.scopes": [
-        "deps",
-        "assets",
-        "standalone"
-    ],
-    "files.exclude": {
-        "**/.git": true,
-        "**/.svn": true,
-        "**/.hg": true,
-        "**/CVS": true,
-        "**/.DS_Store": true,
-        "**/Thumbs.db": true,
-        "**/target": true,
-        "target": true
-    },
-    "explorerExclude.backup": null
+	"conventionalCommits.scopes": ["deps", "assets", "standalone", "structs/version"],
+	"files.exclude": {
+		"**/.git": true,
+		"**/.svn": true,
+		"**/.hg": true,
+		"**/CVS": true,
+		"**/.DS_Store": true,
+		"**/Thumbs.db": true,
+		"**/target": true,
+		"target": true
+	},
+	"explorerExclude.backup": null
 }
