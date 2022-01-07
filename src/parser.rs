@@ -1,7 +1,6 @@
-use std::error::Error;
-
 use dunce::canonicalize;
 use log::{debug, trace};
+use std::error::Error;
 
 use crate::assets::structs::version::{Action, GameRule, JvmRule, Value, Version};
 use crate::assets::structs::version::{GameClass, JvmClass};
@@ -9,6 +8,7 @@ use crate::launcher::Launcher;
 
 #[cfg(target_os = "windows")]
 use winsafe::IsWindows10OrGreater;
+
 pub struct GameArguments;
 pub struct JavaArguments;
 

@@ -18,17 +18,17 @@ categories = ["api-bindings"]
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.72"
 tokio = { version = "1.14.0", features = [
-    "rt-multi-thread",
-    "macros",
-    "fs",
-    "sync",
-    "process",
+  "rt-multi-thread",
+  "macros",
+  "fs",
+  "sync",
+  "process",
 ] }
 reqwest = { version = "0.11", features = ["json"] }
 tokio-retry = "0.3"
 futures = "0.3.18"
 log = "0.4.14"
 dunce = "1.0.2"
-merge = "0.1.0"
+# why do you have to do this mojang
 [target.'cfg(target_os = "windows")'.dependencies]
-winsafe = "0.0.8"
+winsafe = { version = "0.0.9", features = ["kernel"] }
