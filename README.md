@@ -15,6 +15,12 @@ This is meant to be used as a library, but a standalone is also in the works (ma
 
 **MICROSOFT ONLY** becauce mojang is being removed in the future. Migrate now
 
+## Features
+- [x] can actually downloda minecraft
+- [x] parses version manifests for you
+- [x] comes with a CLI (WIP, authentication still needs to be added to the CLI)
+- [  ] proper error handling (We use generic error trait, needs to be improved)
+
 ## Testing
 
 Testing basically works by:
