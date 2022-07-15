@@ -244,9 +244,12 @@ impl JavaArguments {
                         if let Some(windows) = &classifiers.natives_windows {
                             cp.push(
                                 canonicalize(
-                                    launcher_arguments
-                                        .libraries_directory
-                                        .join(windows.path.as_ref().unwrap()),
+                                    launcher_arguments.libraries_directory.join(
+                                        windows
+                                            .path
+                                            .as_ref()
+                                            .ok_or(JavaArgumentsError::NoLibsPath)?,
+                                    ),
                                 )?
                                 .to_str()
                                 .ok_or(JavaArgumentsError::NotValidUtf8Path)?
@@ -259,22 +262,18 @@ impl JavaArguments {
                     "macos" => {
                         if let Some(macos) = &classifiers.natives_macos {
                             cp.push(
-                                canonicalize(
-                                    launcher_arguments
-                                        .libraries_directory
-                                        .join(macos.path.as_ref().unwrap()),
-                                )?
+                                canonicalize(launcher_arguments.libraries_directory.join(
+                                    macos.path.as_ref().ok_or(JavaArgumentsError::NoLibsPath)?,
+                                ))?
                                 .to_str()
                                 .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                                 .to_owned(),
                             );
                         } else if let Some(osx) = &classifiers.natives_osx {
                             cp.push(
-                                canonicalize(
-                                    launcher_arguments
-                                        .libraries_directory
-                                        .join(osx.path.as_ref().unwrap()),
-                                )?
+                                canonicalize(launcher_arguments.libraries_directory.join(
+                                    osx.path.as_ref().ok_or(JavaArgumentsError::NoLibsPath)?,
+                                ))?
                                 .to_str()
                                 .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                                 .to_owned(),
@@ -286,11 +285,9 @@ impl JavaArguments {
                     "linux" => {
                         if let Some(linux) = &classifiers.natives_linux {
                             cp.push(
-                                canonicalize(
-                                    launcher_arguments
-                                        .libraries_directory
-                                        .join(linux.path.as_ref().unwrap()),
-                                )?
+                                canonicalize(launcher_arguments.libraries_directory.join(
+                                    linux.path.as_ref().ok_or(JavaArgumentsError::NoLibsPath)?,
+                                ))?
                                 .to_str()
                                 .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                                 .to_owned(),

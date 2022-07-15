@@ -122,4 +122,10 @@ pub enum JavaArgumentsError {
     /// This usually happens when you forget to merge e.g A manifest that doesn't have a modified
     /// download manifest path with the base one
     NoDownloadArtifactPath,
+
+    #[error("launcher.no_libs_path")]
+    /// No lib path was found
+    ///
+    /// this _shouldnt_ happen, but incase it does, this exists
+    NoLibsPath,
 }
