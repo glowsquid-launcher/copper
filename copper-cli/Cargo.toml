@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 copper = { version = "*", path = "../" }
-structopt = "0.3.25"
+clap = { version = "3", features = ["derive"] }
 anyhow = "1.0.52"
 indicatif = "0.16.2"
 tokio = { version = "1.15.0", features = ["rt-multi-thread", "macros"] }

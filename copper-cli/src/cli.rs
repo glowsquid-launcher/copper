@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use structopt::StructOpt;
+use clap::StructOpt;
 
 use crate::{download_deps::download_deps, launch_minecraft::launch_minecraft};
 
@@ -32,36 +32,36 @@ pub enum Args {
         /// The root .minecraft folder.
         ///
         /// This is where everything will be downloaded to
-        #[structopt(short, long)]
+        #[structopt(short, long, value_parser)]
         root: String,
         /// The minecraft version.
         ///
         /// This can be any minecraft version (including snapshot versions) and can be "latest" for the latest release
-        #[structopt(short, long)]
+        #[structopt(short, long, value_parser)]
         version: String,
     },
     /// Launch minecraft
     Launch {
         /// The root .minecraft folder.
-        #[structopt(short, long, parse(from_os_str))]
+        #[structopt(short, long, value_parser)]
         root: PathBuf,
         /// The minecraft version.
         ///
         /// This can be any minecraft version (including snapshot versions) and can be "latest" for the latest release
-        #[structopt(short, long)]
+        #[structopt(short, long, value_parser)]
         version: String,
 
         /// Your access token.
-        #[structopt(short, long)]
+        #[structopt(short, long, value_parser)]
         access_token: String,
 
-        #[structopt(short, long)]
+        #[structopt(short, long, value_parser)]
         username: String,
 
-        #[structopt(short = "id", long)]
+        #[structopt(short = 'i', long, value_parser)]
         uuid: String,
 
-        #[structopt(short, long)]
+        #[structopt(short, long, value_parser)]
         xbox_uid: String,
     },
 }

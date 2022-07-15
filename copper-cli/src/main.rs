@@ -3,15 +3,14 @@ pub mod download_deps;
 pub mod launch_minecraft;
 
 use anyhow::Result;
+use clap::Parser;
 use cli::{handle_args, Args};
 use fern::colors::{Color, ColoredLevelConfig};
-use structopt::StructOpt;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logger()?;
-    let args = Args::from_args();
-
+    let args = Args::try_parse()?;
     handle_args(args).await
 }
 
