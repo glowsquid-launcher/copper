@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::ops::{Deref, DerefMut, Div};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -12,16 +11,18 @@ use tokio::sync::watch::Receiver;
 use tokio::task::{self, JoinHandle};
 use tokio_retry::{strategy::FixedInterval, Retry};
 
+use crate::errors::DownloadError;
+
 pub fn create_download_task(
     url: String,
     path: PathBuf,
     client: Option<Client>,
-) -> JoinHandle<Result<(), Box<dyn Error + Send + Sync>>> {
+) -> JoinHandle<Result<(), DownloadError>> {
     trace!("Creating download task for {}", url);
     tokio::spawn(async move {
         let client = client.clone().unwrap_or_else(create_client);
 
-        create_dir_all(&path.parent().ok_or("failed to get parent directory")?).await?;
+        create_dir_all(&path.parent().ok_or(DownloadError::NoPathParent)?).await?;
 
         // idk how to get rid of clone
         // hours wasted: 2
@@ -48,8 +49,7 @@ pub fn create_download_task(
     })
 }
 
-pub type ListOfResultHandles =
-    FuturesUnordered<task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>;
+pub type ListOfResultHandles = FuturesUnordered<task::JoinHandle<Result<(), DownloadError>>>;
 
 #[derive(Clone, Copy)]
 pub struct DownloadProgress {

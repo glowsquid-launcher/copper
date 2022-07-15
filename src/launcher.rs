@@ -1,8 +1,8 @@
-use std::error::Error;
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 
 use crate::assets::structs::version::Version;
+use crate::errors::LauncherError;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
 use log::{debug, trace};
@@ -73,7 +73,7 @@ impl Launcher {
     pub async fn launch(
         &self,
         version_manifest: Option<Version>,
-    ) -> Result<GameOutput, Box<dyn Error>> {
+    ) -> Result<GameOutput, LauncherError> {
         trace!("Launching minecraft");
 
         let version_manifest = match version_manifest {
@@ -91,7 +91,7 @@ impl Launcher {
         let main_class = version_manifest
             .main_class
             .as_ref()
-            .ok_or("could not get main class")?;
+            .ok_or(LauncherError::NoMainClass)?;
 
         debug!("Java arguments: {:?}", &java_args);
         debug!("main class: {}", main_class);
@@ -107,12 +107,12 @@ impl Launcher {
         let stdout = process
             .stdout
             .take()
-            .ok_or("could not get stdout from minecraft")?;
+            .ok_or(LauncherError::CannotGetStdout)?;
 
         let stderr = process
             .stderr
             .take()
-            .ok_or("could not get stderr from minecraft")?;
+            .ok_or(LauncherError::CannotGetStderr)?;
 
         let out_reader = BufReader::new(stdout);
         let err_reader = BufReader::new(stderr);
@@ -129,13 +129,13 @@ impl Launcher {
     async fn parse_java_arguments(
         &self,
         version_manifest: &Version,
-    ) -> Result<Vec<String>, Box<dyn Error>> {
+    ) -> Result<Vec<String>, LauncherError> {
         let mut args: Vec<String> = vec![];
 
         for arg in &version_manifest
             .arguments
             .as_ref()
-            .ok_or("could not get arguments")?
+            .ok_or(LauncherError::NoArgs)?
             .jvm
         {
             let formatted_arg = match arg {
@@ -163,13 +163,13 @@ impl Launcher {
     fn parse_game_arguments(
         &self,
         version_manifest: &Version,
-    ) -> Result<Vec<String>, Box<dyn Error>> {
+    ) -> Result<Vec<String>, LauncherError> {
         let mut args: Vec<String> = vec![];
 
         for arg in &version_manifest
             .arguments
             .as_ref()
-            .ok_or("failed to get version arguments")?
+            .ok_or(LauncherError::NoArgs)?
             .game
         {
             let formatted_arg = match arg {

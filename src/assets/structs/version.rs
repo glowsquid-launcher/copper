@@ -1,4 +1,4 @@
-use std::{error::Error, fs::create_dir_all, io::Write, path::PathBuf};
+use std::{fs::create_dir_all, io::Write, path::PathBuf};
 
 use futures::{stream::FuturesUnordered, StreamExt};
 use log::{debug, trace};
@@ -8,8 +8,11 @@ use tokio::{
     task,
 };
 
-use crate::util::{
-    create_client, create_download_task, DownloadProgress, DownloadWatcher, ListOfResultHandles,
+use crate::{
+    errors::{DownloadError, VersionError},
+    util::{
+        create_client, create_download_task, DownloadProgress, DownloadWatcher, ListOfResultHandles,
+    },
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -125,14 +128,12 @@ impl Version {
         merged
     }
 
-    pub fn save_json(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
+    pub fn save_json(&self, save_path: PathBuf) -> Result<(), VersionError> {
         debug!("Saving version to {}", save_path.display());
         // serialize the struct to a json string
         let json = serde_json::to_string(self)?;
         trace!("version JSON: {}", json);
-        create_dir_all(save_path.parent().ok_or(
-            "save_path doesnt have a parent. Make sure you include the {version}.json bit at the end",
-        )?)?;
+        create_dir_all(save_path.parent().ok_or(VersionError::NoPathParent)?)?;
 
         debug!("Creating file at {}", save_path.display());
         let mut file = std::fs::File::create(&save_path)?;
@@ -143,14 +144,14 @@ impl Version {
         Ok(())
     }
 
-    pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, Box<dyn Error>> {
+    pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, VersionError> {
         trace!("Downloading asset index");
         // Get json and return it
         Ok(reqwest::get(
             &self
                 .asset_index
                 .as_ref()
-                .ok_or("No asset index provided")?
+                .ok_or(VersionError::NoAssetIndex)?
                 .url,
         )
         .await?
@@ -161,13 +162,13 @@ impl Version {
     pub async fn download_libraries(
         &self,
         save_path: PathBuf,
-    ) -> Result<ListOfResultHandles, Box<dyn Error>> {
+    ) -> Result<ListOfResultHandles, VersionError> {
         debug!("Downloading libraries");
         let client = create_client();
 
         let tasks = FuturesUnordered::new();
 
-        for library in self.libraries.as_ref().ok_or("No libraries provided")? {
+        for library in self.libraries.as_ref().ok_or(VersionError::NoLibs)? {
             // Check rules for the library to see if it should be downloaded
             if let Some(rules) = &library.rules {
                 debug!("Library {} has rules, checking them", library.name);
@@ -217,7 +218,7 @@ impl Version {
                             continue;
                         }
                     }
-                    _ => panic!("Unsupported OS"),
+                    _ => return Err(VersionError::UnsupportedOs),
                 };
             }
         }
@@ -247,7 +248,7 @@ impl Version {
     pub async fn start_download_libraries(
         &self,
         save_path: PathBuf,
-    ) -> Result<DownloadWatcher, Box<dyn Error>> {
+    ) -> Result<DownloadWatcher, VersionError> {
         trace!("Starting download libraries");
         trace!("Creating progress watcher");
         let (progress_sender, progress_receiver) = watch::channel(DownloadProgress {
@@ -266,38 +267,35 @@ impl Version {
         })
     }
 
-    pub async fn download_client_jar(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
+    pub async fn download_client_jar(&self, save_path: PathBuf) -> Result<(), VersionError> {
         let url = self
             .downloads
             .as_ref()
-            .ok_or("downloads were not provided")?
+            .ok_or(VersionError::NoDownloads)?
             .client
             .url
             .clone();
+
         let task = tokio::spawn(create_download_task(url, save_path, None));
 
         // the ultimate jank
-        if let Err(e) = task.await?? {
-            return Err(e);
-        };
+        task.await???;
 
         Ok(())
     }
 
-    pub async fn download_server_jar(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
+    pub async fn download_server_jar(&self, save_path: PathBuf) -> Result<(), VersionError> {
         let url = self
             .downloads
             .as_ref()
-            .ok_or("downloads were not provided")?
+            .ok_or(VersionError::NoDownloads)?
             .server
             .url
             .clone();
         let task = tokio::spawn(create_download_task(url, save_path, None));
 
         // the ultimate jank
-        if let Err(e) = task.await?? {
-            return Err(e);
-        };
+        task.await???;
 
         Ok(())
     }
@@ -351,7 +349,7 @@ impl Version {
         mappings_class: &MappingsClass,
         save_path: &PathBuf,
         library: &Library,
-        tasks: &FuturesUnordered<task::JoinHandle<Result<(), Box<dyn Error + Send + Sync>>>>,
+        tasks: &FuturesUnordered<task::JoinHandle<Result<(), DownloadError>>>,
         client: &reqwest::Client,
     ) {
         let url = mappings_class.url.clone();

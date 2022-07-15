@@ -4,10 +4,12 @@ use std::error::Error;
 
 use crate::assets::structs::version::{Action, GameRule, JvmRule, Value, Version};
 use crate::assets::structs::version::{GameClass, JvmClass};
+use crate::errors::JavaArgumentsError;
 use crate::launcher::Launcher;
 
 #[cfg(target_os = "windows")]
 use winsafe::IsWindows10OrGreater;
+// Windows users, please test this ^
 
 pub struct GameArguments;
 pub struct JavaArguments;
@@ -112,17 +114,16 @@ impl JavaArguments {
         launcher_arguments: &Launcher,
         version_manifest: &Version,
         argument: String,
-    ) -> Result<String, Box<dyn Error>> {
+    ) -> Result<String, JavaArgumentsError> {
         let classpath = Self::create_classpath(version_manifest, launcher_arguments).await?;
 
         Ok(argument
             .replace(
                 "${natives_directory}",
-                //TODO: Add compat with 1.16.5 which uses <version>/natives
-                &canonicalize(&launcher_arguments.libraries_directory)
-                    .unwrap()
+                //TODO: Add compat with mc version <= 1.16.5 which uses <version>/natives
+                &canonicalize(&launcher_arguments.libraries_directory)?
                     .to_str()
-                    .unwrap()
+                    .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                     .to_string(),
             )
             .replace("${launcher_name}", &launcher_arguments.client_branding)
@@ -207,13 +208,13 @@ impl JavaArguments {
     async fn create_classpath(
         version_manifest: &Version,
         launcher_arguments: &Launcher,
-    ) -> Result<Vec<String>, Box<dyn Error>> {
+    ) -> Result<Vec<String>, JavaArgumentsError> {
         let mut cp = vec![];
 
         for library in version_manifest
             .libraries
             .as_ref()
-            .ok_or("no libraries found")?
+            .ok_or(JavaArgumentsError::NoLibrariesFound)?
         {
             if let Some(rules) = &library.rules {
                 if !Version::check_library_rules(rules) {
@@ -223,13 +224,17 @@ impl JavaArguments {
 
             cp.push(
                 canonicalize(
-                    launcher_arguments
-                        .libraries_directory
-                        .join(library.downloads.artifact.path.as_ref().unwrap()),
-                )
-                .map_err(|err| format!("failed to resolve library path: {}", err))?
+                    launcher_arguments.libraries_directory.join(
+                        library
+                            .downloads
+                            .artifact
+                            .path
+                            .as_ref()
+                            .ok_or(JavaArgumentsError::NoDownloadArtifactPath)?,
+                    ),
+                )?
                 .to_str()
-                .unwrap()
+                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                 .to_owned(),
             );
 
@@ -242,10 +247,9 @@ impl JavaArguments {
                                     launcher_arguments
                                         .libraries_directory
                                         .join(windows.path.as_ref().unwrap()),
-                                )
-                                .map_err(|err| format!("failed to resolve library path: {}", err))?
+                                )?
                                 .to_str()
-                                .unwrap()
+                                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                                 .to_owned(),
                             );
                         } else {
@@ -259,10 +263,9 @@ impl JavaArguments {
                                     launcher_arguments
                                         .libraries_directory
                                         .join(macos.path.as_ref().unwrap()),
-                                )
-                                .map_err(|err| format!("failed to resolve library path: {}", err))?
+                                )?
                                 .to_str()
-                                .unwrap()
+                                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                                 .to_owned(),
                             );
                         } else if let Some(osx) = &classifiers.natives_osx {
@@ -271,10 +274,9 @@ impl JavaArguments {
                                     launcher_arguments
                                         .libraries_directory
                                         .join(osx.path.as_ref().unwrap()),
-                                )
-                                .map_err(|err| format!("failed to resolve library path: {}", err))?
+                                )?
                                 .to_str()
-                                .unwrap()
+                                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                                 .to_owned(),
                             )
                         } else {
@@ -288,10 +290,9 @@ impl JavaArguments {
                                     launcher_arguments
                                         .libraries_directory
                                         .join(linux.path.as_ref().unwrap()),
-                                )
-                                .map_err(|err| format!("failed to resolve library path: {}", err))?
+                                )?
                                 .to_str()
-                                .unwrap()
+                                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                                 .to_owned(),
                             );
                         } else {
@@ -304,10 +305,9 @@ impl JavaArguments {
         }
 
         cp.push(
-            canonicalize(&launcher_arguments.jar_path)
-                .map_err(|err| format!("failed to resolve library path: {}", err))?
+            canonicalize(&launcher_arguments.jar_path)?
                 .to_str()
-                .unwrap()
+                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
                 .to_owned(),
         );
 
