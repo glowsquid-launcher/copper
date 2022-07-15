@@ -16,9 +16,7 @@ categories = ["api-bindings"]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = [
-  "macros",
   "fs",
-  "sync",
   "process",
 ] }
 reqwest = { version = "0.11", features = ["json"] }
@@ -26,6 +24,7 @@ tokio-retry = "0.3"
 futures = "0.3"
 log = "0.4"
 dunce = "1"
+thiserror = "1"
 
 # why do you have to do this mojang
 [target.'cfg(target_os = "windows")'.dependencies]
