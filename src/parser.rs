@@ -1,6 +1,5 @@
 use dunce::canonicalize;
 use log::{debug, trace};
-use std::error::Error;
 
 use crate::assets::structs::version::{Action, GameRule, JvmRule, Value, Version};
 use crate::assets::structs::version::{GameClass, JvmClass};
@@ -142,7 +141,7 @@ impl JavaArguments {
         argument: &JvmClass,
     ) -> Result<Option<String>, JavaArgumentsError> {
         for rule in &argument.rules {
-            if !Self::check_rule(rule) {
+            if !Self::check_rule(rule)? {
                 return Ok(None);
             }
         }
@@ -160,49 +159,47 @@ impl JavaArguments {
         ))
     }
 
-    fn check_rule(rule: &JvmRule) -> bool {
+    fn check_rule(rule: &JvmRule) -> Result<bool, JavaArgumentsError> {
         let mut current_allow = false;
 
         match rule.action {
             Action::Allow => {
                 if let Some(name) = &rule.os.name {
                     current_allow = match &*name.to_owned() {
-                        "osx" =>  cfg!(target_os = "macos"),
+                        "osx" => cfg!(target_os = "macos"),
                         #[cfg(target_os = "windows")]
                         "windows" => {
-                                if let Some(ver) = &rule.os.version {
-                                    if ver != "^10\\." {
-                                        panic!("unrecognised windows version: {:?}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", ver);
-                                    }
-
-                                    return IsWindows10OrGreater().unwrap_or(false);
-                                } else {
-                                    true
+                            if let Some(ver) = &rule.os.version {
+                                if ver != "^10\\." {
+                                    panic!("unrecognised windows version: {:?}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", ver);
                                 }
-                        },
+
+                                Ok(IsWindows10OrGreater().unwrap_or(false))
+                            } else {
+                                Ok(true)
+                            }
+                        }
                         #[cfg(not(target_os = "windows"))]
                         "windows" => false,
                         "linux" => cfg!(target_os = "linux"),
-                        _ => panic!("unrecognised os name {}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using", name),
+                        _ => return Err(JavaArgumentsError::UnrecognisedOs),
                     };
                 }
 
                 if current_allow == false {
-                    return false;
+                    return Ok(false);
                 }
 
                 if let Some(arch) = &rule.os.arch {
                     match &*arch.to_owned() {
                         "x86" => current_allow = cfg!(target_arch = "x86"),
-                        _ => panic!("unrecognised os arch {}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using ", arch),
+                        _ => return Err(JavaArgumentsError::UnrecognisedOsArch),
                     }
                 }
             }
-            Action::Disallow => {
-                panic!("no disallows have been implemented yet. Please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using");
-            }
+            Action::Disallow => return Err(JavaArgumentsError::NoDissalows),
         }
-        current_allow
+        Ok(current_allow)
     }
 
     async fn create_classpath(

@@ -78,6 +78,10 @@ pub enum LauncherError {
     /// serde_json failed to serialize/deserialize an error
     SerdeError(#[from] serde_json::Error),
 
+    #[error("launcher.argument_parse_error(error={0})")]
+    /// An error happened when parsing arguments
+    JavaArgumentParseError(#[from] JavaArgumentsError),
+
     #[error("launcher.cannot_get_stdout")]
     /// Cannot get the stdout stream from the minecraft process
     CannotGetStdout,
@@ -128,4 +132,16 @@ pub enum JavaArgumentsError {
     ///
     /// this _shouldnt_ happen, but incase it does, this exists
     NoLibsPath,
+
+    #[error("launcher.unrecognised_os")]
+    /// The OS in the arguments is not recognized. This shouldn't happen, if it does, file a bug
+    UnrecognisedOs,
+
+    #[error("launcher.unrecognised_os_arch")]
+    /// The OS arch in the arguments is not recognized. This shouldn't happen, if it does, file a bug
+    UnrecognisedOsArch,
+
+    #[error("launcher.no_dissalows")]
+    /// No disallows are currently implemented. Please file a bug if this error happens
+    NoDissalows,
 }
