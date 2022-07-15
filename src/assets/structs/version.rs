@@ -310,6 +310,7 @@ impl Version {
                         if match os.name {
                             Name::Linux => cfg!(target_os = "linux"),
                             Name::Osx => cfg!(target_os = "macos"),
+                            Name::Windows => cfg!(target_os = "windows"),
                         } {
                             // continue going through the rules
                             continue;
@@ -327,6 +328,7 @@ impl Version {
                         if match os.name {
                             Name::Linux => cfg!(target_os = "linux"),
                             Name::Osx => cfg!(target_os = "macos"),
+                            Name::Windows => cfg!(target_os = "windows"),
                         } {
                             return false;
                         } else {
@@ -544,4 +546,6 @@ pub enum Name {
     Osx,
     #[serde(rename = "linux")]
     Linux,
+    #[serde(rename = "windows")]
+    Windows,
 }
