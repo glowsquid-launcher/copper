@@ -140,7 +140,7 @@ impl JavaArguments {
         launcher_arguments: &Launcher,
         version_manifest: &Version,
         argument: &JvmClass,
-    ) -> Result<Option<String>, Box<dyn Error>> {
+    ) -> Result<Option<String>, JavaArgumentsError> {
         for rule in &argument.rules {
             if !Self::check_rule(rule) {
                 return Ok(None);
