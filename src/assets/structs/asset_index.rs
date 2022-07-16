@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
-use std::{collections::HashMap, error::Error};
 
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
@@ -10,6 +10,7 @@ use tokio::fs::create_dir_all;
 use tokio::sync::watch::{self, Sender};
 use tokio::task;
 
+use crate::errors::SaveError;
 use crate::util::{
     create_client, create_download_task, DownloadProgress, DownloadWatcher, ListOfResultHandles,
 };
@@ -26,12 +27,12 @@ pub struct Object {
 }
 
 impl AssetIndex {
-    pub async fn save_index(&self, save_path: PathBuf) -> Result<(), Box<dyn Error>> {
+    pub async fn save_index(&self, save_path: PathBuf) -> Result<(), SaveError> {
         // serialize the struct to a json string
         trace!("Serializing AssetIndex to JSON");
         let json = serde_json::to_string(self)?;
 
-        create_dir_all(&save_path.parent().ok_or("failed to get parent directory")?).await?;
+        create_dir_all(&save_path.parent().ok_or(SaveError::NoParentPath)?).await?;
 
         // create file and save it
         debug!("Creating AssetIndex file at {}", &save_path.display());

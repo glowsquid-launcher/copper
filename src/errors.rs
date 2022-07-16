@@ -169,3 +169,20 @@ pub enum JavaArgumentsError {
     /// If this happens, report it as a bug
     UnrecognisedDisallowRule,
 }
+
+#[derive(Error, Debug)]
+pub enum SaveError {
+    #[error("save.io_error(error={0})")]
+    /// An error happened during an IO operation
+    IoError(#[from] std::io::Error),
+
+    #[error("save.serde_error(error={0})")]
+    /// serde_json failed to serialize/deserialize an error
+    SerdeError(#[from] serde_json::Error),
+
+    #[error("save.no_parent_path")]
+    /// A path didn't have a parent
+    ///
+    /// This can happen if you forgot to include the file name
+    NoParentPath,
+}
