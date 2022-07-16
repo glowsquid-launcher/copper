@@ -40,7 +40,10 @@ impl AssetIndex {
         debug!("Writing JSON to AssetIndex file");
         file.write(json.as_bytes())?;
 
-        debug!("Saved AssetIndex to {}", &save_path.to_str().unwrap());
+        debug!(
+            "Saved AssetIndex to {}",
+            &save_path.to_str().ok_or(SaveError::NotValidUtf8Path)?
+        );
         Ok(())
     }
 

@@ -19,7 +19,7 @@ This is meant to be used as a library, but a standalone is also in the works (ma
 - [x] can actually downloda minecraft
 - [x] parses version manifests for you
 - [x] comes with a CLI (WIP, authentication still needs to be added to the CLI)
-- [  ] proper error handling (We use generic error trait, needs to be improved)
+- [x] proper error handling
 
 ## Testing
 

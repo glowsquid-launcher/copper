@@ -185,4 +185,8 @@ pub enum SaveError {
     ///
     /// This can happen if you forgot to include the file name
     NoParentPath,
+
+    #[error("save.not_valid_utf8_path")]
+    /// A path is not valid UTF-8.
+    NotValidUtf8Path,
 }
