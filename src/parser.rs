@@ -17,45 +17,58 @@ impl GameArguments {
     pub fn parse_class_argument(
         launcher_arguments: &Launcher,
         argument: &GameClass,
-    ) -> Option<String> {
+    ) -> Result<Option<String>, JavaArgumentsError> {
         debug!("Parsing class argument: {:?}", argument);
 
-        let rules_passed = argument.rules.iter().any(|rule| {
-            debug!("Checking rule: {:?}", rule);
-            Self::check_rule(rule, launcher_arguments)
-        });
+        let checks = argument
+            .rules
+            .iter()
+            .map(|rule| Self::check_rule(rule, launcher_arguments));
+
+        let rules_passed = itertools::process_results(checks, |mut iter| {
+            iter.any(|rule| {
+                debug!("Checking rule: {:?}", rule);
+                rule
+            })
+        })?;
 
         if !rules_passed {
-            return None;
+            return Ok(None);
+        } else {
+            Ok(Some(Self::parse_string_argument(
+                launcher_arguments,
+                match &argument.value {
+                    Value::String(str) => str.to_string(),
+                    Value::StringArray(array) => array.join(" "),
+                },
+            )?))
         }
-
-        Some(Self::parse_string_argument(
-            launcher_arguments,
-            match &argument.value {
-                Value::String(str) => str.to_string(),
-                Value::StringArray(array) => array.join(" "),
-            },
-        ))
     }
 
-    pub fn parse_string_argument(launcher_arguments: &Launcher, argument: String) -> String {
+    pub fn parse_string_argument(
+        launcher_arguments: &Launcher,
+        argument: String,
+    ) -> Result<String, JavaArgumentsError> {
         trace!("Parsing string argument: {:?}", &argument);
 
         return if argument.starts_with("${") && argument.ends_with("}") {
             let dynamic_argument = &argument[2..argument.len() - 1].to_string();
-            Self::match_dynamic_argument(launcher_arguments, dynamic_argument).to_string()
+            Ok(Self::match_dynamic_argument(launcher_arguments, dynamic_argument)?.to_string())
         } else if argument == "--clientId" {
             if let Some(_) = &launcher_arguments.authentication_details.client_id {
-                argument
+                Ok(argument)
             } else {
-                "".to_string() // dont put in argument if there is no client id
+                Ok("".to_string()) // dont put in argument if there is no client id
             }
         } else {
-            argument
+            Ok(argument)
         };
     }
 
-    fn match_dynamic_argument(launcher_arguments: &Launcher, dynamic_argument: &str) -> String {
+    fn match_dynamic_argument(
+        launcher_arguments: &Launcher,
+        dynamic_argument: &str,
+    ) -> Result<String, JavaArgumentsError> {
         //! This is based of the 1.18 JSON. This assumes that all accounts are microsoft accounts
         //! (As Mojang accounts are being deprecated and soon erased from existence).
 
@@ -67,43 +80,81 @@ impl GameArguments {
             .unwrap_or(&"".to_string())
             .clone();
 
-        match dynamic_argument {
-            "auth_player_name" => launcher_arguments.authentication_details.username.to_owned(),
+        Ok(match dynamic_argument {
+            "auth_player_name" => launcher_arguments
+                .authentication_details
+                .username
+                .to_owned(),
             "version_name" => launcher_arguments.version_name.to_owned(),
-            "game_directory" => canonicalize(launcher_arguments.game_directory.to_owned()).unwrap().to_str().unwrap().to_owned(),
-            "assets_root" => canonicalize(launcher_arguments.assets_directory.to_owned()).unwrap().to_str().unwrap().to_owned(),
+            "game_directory" => canonicalize(launcher_arguments.game_directory.to_owned())?
+                .to_str()
+                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
+                .to_owned(),
+            "assets_root" => canonicalize(launcher_arguments.assets_directory.to_owned())?
+                .to_str()
+                .ok_or(JavaArgumentsError::NotValidUtf8Path)?
+                .to_owned(),
             "assets_index_name" => launcher_arguments.version_name.to_owned(),
             "auth_uuid" => launcher_arguments.authentication_details.uuid.to_owned(),
-            "auth_access_token" => launcher_arguments.authentication_details.access_token.to_owned(),
+            "auth_access_token" => launcher_arguments
+                .authentication_details
+                .access_token
+                .to_owned(),
             "clientid" => client_id,
-            "auth_xuid" => launcher_arguments.authentication_details.xbox_uid.to_owned(),
+            "auth_xuid" => launcher_arguments
+                .authentication_details
+                .xbox_uid
+                .to_owned(),
             // we assume that the user is a microsoft account
             "user_type" => "msa".to_string(),
-            "version_type" => if launcher_arguments.is_snapshot { "snapshot".to_string() } else { "release".to_string() },
+            "version_type" => {
+                if launcher_arguments.is_snapshot {
+                    "snapshot".to_string()
+                } else {
+                    "release".to_string()
+                }
+            }
             "resolution_width" if launcher_arguments.custom_resolution.is_some() => {
-                launcher_arguments.custom_resolution.as_ref().unwrap().width.to_string()
-            },
+                launcher_arguments
+                    .custom_resolution
+                    .as_ref()
+                    .ok_or(JavaArgumentsError::NoCustomResolutionProvided)?
+                    .width
+                    .to_string()
+            }
             "resolution_height" if launcher_arguments.custom_resolution.is_some() => {
-                launcher_arguments.custom_resolution.as_ref().unwrap().height.to_string()
-            },
-            _ => panic!("unrecognised game argument {}, please report to https://github.com/glowsquid-launcher/minecraft-rs/issues", dynamic_argument)
-        }
+                launcher_arguments
+                    .custom_resolution
+                    .as_ref()
+                    .ok_or(JavaArgumentsError::NoCustomResolutionProvided)?
+                    .height
+                    .to_string()
+            }
+            _ => {
+                return Err(JavaArgumentsError::UnrecognisedGameArgument(
+                    dynamic_argument.to_string(),
+                ))
+            }
+        })
     }
 
-    fn check_rule(rule: &GameRule, launcher_arguments: &Launcher) -> bool {
+    fn check_rule(
+        rule: &GameRule,
+        launcher_arguments: &Launcher,
+    ) -> Result<bool, JavaArgumentsError> {
         // based of the 1.18 json
         match rule.action {
             Action::Allow => {
                 if let Some(_) = rule.features.is_demo_user {
-                    return launcher_arguments.authentication_details.is_demo_user
+                    return Ok(launcher_arguments.authentication_details.is_demo_user);
                 } else if let Some(_) = rule.features.has_custom_resolution {
-                    return launcher_arguments.custom_resolution.is_some()
+                    return Ok(launcher_arguments.custom_resolution.is_some());
                 } else {
-                    panic!("unrecognised rule action, please report to https://glowsquid-launcher/minecraft-rs/issues with the version you are using");
+                    Err(JavaArgumentsError::UnrecognisedAllowRule)
                 }
             }
             // no disallows yet
-            Action::Disallow => panic!("no disallows have been implemented yet. Please report to https://github.com/glowsquid-launcher/minecraft-rs/issues with the version you are using"),
+            Action::Disallow => Err(JavaArgumentsError::UnrecognisedDisallowRule),
         }
     }
 }

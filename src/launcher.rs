@@ -174,11 +174,11 @@ impl Launcher {
         {
             let formatted_arg = match arg {
                 assets::structs::version::GameElement::GameClass(argument) => {
-                    GameArguments::parse_class_argument(self, argument)
+                    GameArguments::parse_class_argument(self, argument)?
                 }
 
                 assets::structs::version::GameElement::String(argument) => Some(
-                    GameArguments::parse_string_argument(self, argument.to_string()),
+                    GameArguments::parse_string_argument(self, argument.to_string())?,
                 ),
             };
 

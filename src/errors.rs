@@ -144,4 +144,28 @@ pub enum JavaArgumentsError {
     #[error("launcher.no_dissalows")]
     /// No disallows are currently implemented. Please file a bug if this error happens
     NoDissalows,
+
+    #[error("launcher.no_custom_resolution")]
+    /// No custom resolution was provided
+    ///
+    /// this _should NEVER_ happen, but incase it does, this exists. Please file a bug report.
+    NoCustomResolutionProvided,
+
+    #[error("launcher.unrecognised_game_argument(arg={0})")]
+    /// The launcher encountered a game argument it doesn't know about
+    ///
+    /// If this happens, report it as a bug
+    UnrecognisedGameArgument(String),
+
+    #[error("launcher.unrecognised_allow_rule")]
+    /// The launcher encountered an allow rule it doesn't know about
+    ///
+    /// If this happens, report it as a bug
+    UnrecognisedAllowRule,
+
+    #[error("launcher.unrecognised_disallow_rule")]
+    /// The launcher encountered a disallow rule it doesn't know about
+    ///
+    /// If this happens, report it as a bug
+    UnrecognisedDisallowRule,
 }
