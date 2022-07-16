@@ -3,16 +3,17 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use futures::stream::FuturesUnordered;
-use log::{debug, trace};
 use reqwest::{Client, ClientBuilder};
 use tokio::fs::create_dir_all;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::watch::Receiver;
 use tokio::task::{self, JoinHandle};
 use tokio_retry::{strategy::FixedInterval, Retry};
+use tracing::{debug, trace};
 
 use crate::errors::DownloadError;
 
+#[tracing::instrument]
 pub fn create_download_task(
     url: String,
     path: PathBuf,
@@ -51,7 +52,7 @@ pub fn create_download_task(
 
 pub type ListOfResultHandles = FuturesUnordered<task::JoinHandle<Result<(), DownloadError>>>;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct DownloadProgress {
     pub total_size: u64,
     pub finished: u64,

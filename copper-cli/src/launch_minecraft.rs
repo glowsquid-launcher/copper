@@ -6,8 +6,9 @@ use copper::{
     assets::structs::launcher_meta::LauncherMeta,
     launcher::{AuthenticationDetails, Launcher, RamSize},
 };
-use log::{info, warn};
+use tracing::{info, warn};
 
+#[tracing::instrument]
 pub async fn launch_minecraft(
     username: String,
     uuid: String,

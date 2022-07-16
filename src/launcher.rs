@@ -5,11 +5,11 @@ use crate::assets::structs::version::Version;
 use crate::errors::LauncherError;
 use crate::parser::JavaArguments;
 use crate::{assets, parser::GameArguments};
-use log::{debug, trace};
 use tokio::fs;
 use tokio::io::BufReader;
 use tokio::process::{ChildStderr, ChildStdout, Command};
 use tokio::task::JoinHandle;
+use tracing::{debug, trace};
 
 #[derive(Default, Debug, Clone)]
 pub struct AuthenticationDetails {
@@ -70,6 +70,7 @@ pub struct Launcher {
 }
 
 impl Launcher {
+    #[tracing::instrument]
     pub async fn launch(
         &self,
         version_manifest: Option<Version>,
@@ -126,6 +127,7 @@ impl Launcher {
         })
     }
 
+    #[tracing::instrument]
     async fn parse_java_arguments(
         &self,
         version_manifest: &Version,
@@ -160,6 +162,7 @@ impl Launcher {
         Ok(args)
     }
 
+    #[tracing::instrument]
     fn parse_game_arguments(
         &self,
         version_manifest: &Version,

@@ -22,7 +22,7 @@ tokio = { version = "1", features = [
 reqwest = { version = "0.11", features = ["json"] }
 tokio-retry = "0.3"
 futures = "0.3"
-log = "0.4"
+tracing = "0.1"
 dunce = "1"
 thiserror = "1"
 itertools = "0.10"

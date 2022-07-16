@@ -1,5 +1,5 @@
 use dunce::canonicalize;
-use log::{debug, trace};
+use tracing::{debug, trace};
 
 use crate::assets::structs::version::{Action, GameRule, JvmRule, Value, Version};
 use crate::assets::structs::version::{GameClass, JvmClass};
@@ -14,6 +14,7 @@ pub struct GameArguments;
 pub struct JavaArguments;
 
 impl GameArguments {
+    #[tracing::instrument]
     pub fn parse_class_argument(
         launcher_arguments: &Launcher,
         argument: &GameClass,
@@ -45,6 +46,7 @@ impl GameArguments {
         }
     }
 
+    #[tracing::instrument]
     pub fn parse_string_argument(
         launcher_arguments: &Launcher,
         argument: String,
@@ -65,12 +67,13 @@ impl GameArguments {
         };
     }
 
+    #[tracing::instrument]
     fn match_dynamic_argument(
         launcher_arguments: &Launcher,
         dynamic_argument: &str,
     ) -> Result<String, JavaArgumentsError> {
-        //! This is based of the 1.18 JSON. This assumes that all accounts are microsoft accounts
-        //! (As Mojang accounts are being deprecated and soon erased from existence).
+        // This is based of the 1.18 JSON. This assumes that all accounts are microsoft accounts
+        // (As Mojang accounts are being deprecated and soon erased from existence).
 
         trace!("Matching dynamic argument: {:?}", &dynamic_argument);
         let client_id = launcher_arguments
@@ -138,6 +141,7 @@ impl GameArguments {
         })
     }
 
+    #[tracing::instrument]
     fn check_rule(
         rule: &GameRule,
         launcher_arguments: &Launcher,
@@ -160,6 +164,7 @@ impl GameArguments {
 }
 
 impl JavaArguments {
+    #[tracing::instrument]
     pub async fn parse_string_argument(
         launcher_arguments: &Launcher,
         version_manifest: &Version,
@@ -186,6 +191,7 @@ impl JavaArguments {
             ))
     }
 
+    #[tracing::instrument]
     pub async fn parse_class_argument(
         launcher_arguments: &Launcher,
         version_manifest: &Version,
@@ -210,6 +216,7 @@ impl JavaArguments {
         ))
     }
 
+    #[tracing::instrument]
     fn check_rule(rule: &JvmRule) -> Result<bool, JavaArgumentsError> {
         let mut current_allow = false;
 
@@ -253,6 +260,7 @@ impl JavaArguments {
         Ok(current_allow)
     }
 
+    #[tracing::instrument]
     async fn create_classpath(
         version_manifest: &Version,
         launcher_arguments: &Launcher,

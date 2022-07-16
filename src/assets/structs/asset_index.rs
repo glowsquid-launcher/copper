@@ -4,11 +4,11 @@ use std::path::PathBuf;
 
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use log::{debug, trace};
 use serde::{Deserialize, Serialize};
 use tokio::fs::create_dir_all;
 use tokio::sync::watch::{self, Sender};
 use tokio::task;
+use tracing::{debug, trace};
 
 use crate::errors::SaveError;
 use crate::util::{
@@ -27,6 +27,7 @@ pub struct Object {
 }
 
 impl AssetIndex {
+    #[tracing::instrument]
     pub async fn save_index(&self, save_path: PathBuf) -> Result<(), SaveError> {
         // serialize the struct to a json string
         trace!("Serializing AssetIndex to JSON");
@@ -48,6 +49,7 @@ impl AssetIndex {
     }
 
     /// The save path should be /assets/objects
+    #[tracing::instrument]
     pub async fn download_assets(&self, save_path: PathBuf) -> ListOfResultHandles {
         trace!("Downloading assets");
         let client = create_client();
@@ -82,6 +84,7 @@ impl AssetIndex {
         tasks
     }
 
+    #[tracing::instrument]
     async fn run_downloads(
         mut tasks: ListOfResultHandles,
         progress_sender: Sender<DownloadProgress>,
@@ -102,6 +105,7 @@ impl AssetIndex {
         debug!("All asset downloads finished");
     }
 
+    #[tracing::instrument]
     pub async fn start_download_assets(&self, save_path: PathBuf) -> DownloadWatcher {
         trace!("Starting download assets");
         trace!("Creating progress watcher");

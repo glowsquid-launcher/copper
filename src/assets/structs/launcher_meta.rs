@@ -1,7 +1,6 @@
 use super::version::Version as VersionManifest;
-use log::{debug, trace};
 use serde::{Deserialize, Serialize};
-use std::error::Error;
+use tracing::{debug, trace};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LauncherMeta {
@@ -39,7 +38,8 @@ pub enum Type {
 }
 
 impl Version {
-    pub async fn version(&self) -> Result<VersionManifest, Box<dyn Error>> {
+    #[tracing::instrument]
+    pub async fn version(&self) -> Result<VersionManifest, reqwest::Error> {
         trace!("Downloading version manifest for {}", self.id);
         // download the version manifest and return a parsed version manifest
         Ok(reqwest::get(&self.url)
@@ -50,6 +50,7 @@ impl Version {
 }
 
 impl Latest {
+    #[tracing::instrument]
     pub fn version_for_release<'a>(&self, launcher_meta: &'a LauncherMeta) -> &'a Version {
         // get the latest release and find its version
         launcher_meta
@@ -60,6 +61,7 @@ impl Latest {
             .unwrap()
     }
 
+    #[tracing::instrument]
     pub fn version_for_snapshot<'a>(&self, launcher_meta: &'a LauncherMeta) -> &'a Version {
         // get the latest snapshot and find its version
         launcher_meta
@@ -72,7 +74,8 @@ impl Latest {
 }
 
 impl LauncherMeta {
-    pub async fn download_meta() -> Result<Self, Box<dyn Error>> {
+    #[tracing::instrument]
+    pub async fn download_meta() -> Result<Self, reqwest::Error> {
         let server_url = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
         debug!("Downloading launcher meta from {}", server_url);
 

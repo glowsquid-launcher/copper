@@ -1,5 +1,5 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use log::info;
+use tracing::info;
 use std::path::PathBuf;
 use tokio::task::JoinHandle;
 
@@ -7,6 +7,7 @@ use anyhow::{anyhow, Result};
 use copper::assets::structs::launcher_meta::LauncherMeta;
 use copper::util::DivPathBuf;
 
+#[tracing::instrument]
 pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<()> {
     let launcher_meta = LauncherMeta::download_meta()
         .await

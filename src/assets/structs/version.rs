@@ -1,12 +1,12 @@
 use std::{fs::create_dir_all, io::Write, path::PathBuf};
 
 use futures::{stream::FuturesUnordered, StreamExt};
-use log::{debug, trace};
 use serde::{Deserialize, Serialize};
 use tokio::{
     sync::watch::{self, Sender},
     task,
 };
+use tracing::{debug, trace};
 
 use crate::{
     errors::{DownloadError, VersionError},
@@ -41,6 +41,7 @@ pub struct Version {
 }
 
 impl Version {
+    #[tracing::instrument]
     pub fn merge(self, lower: Self) -> Self {
         let mut merged = Self {
             arguments: None,
@@ -128,6 +129,7 @@ impl Version {
         merged
     }
 
+    #[tracing::instrument]
     pub fn save_json(&self, save_path: PathBuf) -> Result<(), VersionError> {
         debug!("Saving version to {}", save_path.display());
         // serialize the struct to a json string
@@ -144,6 +146,7 @@ impl Version {
         Ok(())
     }
 
+    #[tracing::instrument]
     pub async fn asset_index(&self) -> Result<super::asset_index::AssetIndex, VersionError> {
         trace!("Downloading asset index");
         // Get json and return it
@@ -159,6 +162,7 @@ impl Version {
         .await?)
     }
 
+    #[tracing::instrument]
     pub async fn download_libraries(
         &self,
         save_path: PathBuf,
@@ -227,6 +231,7 @@ impl Version {
         Ok(tasks)
     }
 
+    #[tracing::instrument]
     async fn run_downloads(
         mut tasks: ListOfResultHandles,
         progress_sender: Sender<DownloadProgress>,
@@ -245,6 +250,7 @@ impl Version {
         }
     }
 
+    #[tracing::instrument]
     pub async fn start_download_libraries(
         &self,
         save_path: PathBuf,
@@ -267,6 +273,7 @@ impl Version {
         })
     }
 
+    #[tracing::instrument]
     pub async fn download_client_jar(&self, save_path: PathBuf) -> Result<(), VersionError> {
         let url = self
             .downloads
@@ -284,6 +291,7 @@ impl Version {
         Ok(())
     }
 
+    #[tracing::instrument]
     pub async fn download_server_jar(&self, save_path: PathBuf) -> Result<(), VersionError> {
         let url = self
             .downloads
@@ -300,6 +308,7 @@ impl Version {
         Ok(())
     }
 
+    #[tracing::instrument]
     pub fn check_library_rules(rules: &Vec<LibraryRule>) -> bool {
         for rule in rules {
             match rule.action {
@@ -345,6 +354,7 @@ impl Version {
         true
     }
 
+    #[tracing::instrument]
     fn create_save_task(
         mappings_class: &MappingsClass,
         save_path: &PathBuf,
