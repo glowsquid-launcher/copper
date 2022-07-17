@@ -5,6 +5,7 @@ use anyhow::{anyhow, Result};
 use copper::{
     assets::structs::launcher_meta::LauncherMeta,
     launcher::{AuthenticationDetails, Launcher, RamSize},
+    util::create_client,
 };
 use tracing::{info, warn};
 
@@ -72,7 +73,7 @@ pub async fn launch_minecraft(
     };
 
     let game_output = launcher
-        .launch(None)
+        .launch(None, create_client())
         .await
         .map_err(|err| anyhow!("Failed to launch minecraft: {}", err))?;
     let mut out_reader = game_output.stdout;

@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::StructOpt;
 
-use crate::{download_deps::download_deps, launch_minecraft::launch_minecraft};
+use crate::{
+    download_deps::{download_deps, VersionId},
+    launch_minecraft::launch_minecraft,
+};
 
 pub async fn handle_args(args: Args) -> Result<()> {
     match args {
@@ -38,7 +41,7 @@ pub enum Args {
         ///
         /// This can be any minecraft version (including snapshot versions) and can be "latest" for the latest release
         #[structopt(short, long, value_parser)]
-        version: String,
+        version: VersionId,
     },
     /// Launch minecraft
     Launch {

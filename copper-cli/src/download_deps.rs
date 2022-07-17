@@ -1,42 +1,98 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use tracing::info;
+use std::convert::Infallible;
 use std::path::PathBuf;
-use tokio::task::JoinHandle;
+use std::str::FromStr;
+use tokio::{fs, task::JoinHandle};
+use tracing::info;
 
 use anyhow::{anyhow, Result};
 use copper::assets::structs::launcher_meta::LauncherMeta;
-use copper::util::DivPathBuf;
+use copper::assets::structs::version::Version as VersionManifest;
+use copper::util::{create_client, DivPathBuf};
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum VersionId {
+    Id(String),
+    Path(PathBuf),
+}
+
+impl FromStr for VersionId {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let path_buf = PathBuf::from_str(s);
+        if let Ok(pb) = path_buf {
+            if pb.exists() {
+                Ok(Self::Path(pb))
+            } else {
+                Ok(Self::Id(s.to_string()))
+            }
+        } else {
+            Ok(Self::Id(s.to_string()))
+        }
+    }
+}
 
 #[tracing::instrument]
-pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<()> {
+pub async fn download_deps(root: String, version_id: VersionId) -> anyhow::Result<()> {
     let launcher_meta = LauncherMeta::download_meta()
         .await
         .map_err(|err| anyhow!("Failed to download launcher meta: {}", err))?;
 
-    let version_info = if version_id == "latest" {
-        launcher_meta.latest.version_for_release(&launcher_meta)
-    } else {
-        launcher_meta
-            .versions
-            .iter()
-            .find(|version| version.id == version_id)
-            .ok_or(anyhow!("Version {} not found", version_id))?
-    };
+    let version = match version_id {
+        VersionId::Id(id) => {
+            let version_info = if id == "latest" {
+                launcher_meta
+                    .latest
+                    .version_for_release(&launcher_meta)
+                    .clone()
+            } else {
+                launcher_meta
+                    .versions
+                    .iter()
+                    .find(|version| version.id == id)
+                    .ok_or(anyhow!("Version {} not found", id))?
+                    .clone()
+            };
 
-    let version = version_info.version().await.map_err(|err| {
-        anyhow!(
-            "Failed to download version manifest for version {}: {}",
-            &version_info.id,
-            err
-        )
-    })?;
+            version_info.version().await.map_err(|err| {
+                anyhow!(
+                    "Failed to download version manifest for version {}: {}",
+                    &version_info.id,
+                    err
+                )
+            })?
+        }
+        VersionId::Path(path) => {
+            let file = fs::read_to_string(path).await?;
+            let new_json = serde_json::from_str::<VersionManifest>(&file)?;
+            if let Some(other) = new_json.inherits_from.clone() {
+                new_json.merge(
+                    launcher_meta
+                        .versions
+                        .iter()
+                        .find(|version| version.id == other)
+                        .ok_or(anyhow!("Version {} not found", other))?
+                        .clone()
+                        .version()
+                        .await
+                        .map_err(|err| {
+                            anyhow!(
+                                "Failed to download version manifest for version {}: {}",
+                                other,
+                                err
+                            )
+                        })?,
+                )
+            } else {
+                new_json
+            }
+        }
+    };
 
     let id = version.id.as_ref().ok_or(anyhow!("Version id not found"))?;
 
-    info!(
-        "Downloaded version manifest for version {}",
-        &version_info.id
-    );
+    info!("Downloaded version manifest for version {}", &id);
 
     let root_path = DivPathBuf(PathBuf::from(root));
     let libraries_path = &root_path / "libraries";
@@ -56,14 +112,14 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
     assets_bar.set_message("Downloading assets");
 
     let mut libraries_watcher = version
-        .start_download_libraries(libraries_path.to_path_buf())
+        .start_download_libraries(libraries_path.to_path_buf(), create_client())
         .await
         .map_err(|err| anyhow!("Failed to download libraries: {}", err))?;
 
     let asset_index = version.asset_index().await.map_err(|err| {
         anyhow!(
             "Failed to download asset index for version {}: {}",
-            &version_info.id,
+            &id,
             err
         )
     })?;
@@ -116,10 +172,7 @@ pub async fn download_deps(root: String, version_id: String) -> anyhow::Result<(
         .map_err(|_err| anyhow!("Failed to download assets"))?;
 
     asset_index
-        .save_index(
-            (&root_path / "assets" / "indexes" / &format!("{}.json", version_info.id))
-                .to_path_buf(),
-        )
+        .save_index((&root_path / "assets" / "indexes" / &format!("{}.json", id)).to_path_buf())
         .await
         .map_err(|err| anyhow!("failed to save asset index: {}", err))?;
 

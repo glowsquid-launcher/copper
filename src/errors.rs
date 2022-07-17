@@ -50,6 +50,10 @@ pub enum VersionError {
     #[error("version.join_error")]
     /// An error happened when trying to join/wait for a threads output
     JoinError(#[from] tokio::task::JoinError),
+
+    #[error("version.library_download_error(error={0})")]
+    /// An error happened during creating a library download from a maven url
+    LibraryDownloadError(#[from] CreateLibraryDownloadError)
 }
 
 #[derive(Error, Debug)]
@@ -106,64 +110,72 @@ pub enum LauncherError {
 
 #[derive(Debug, Error)]
 pub enum JavaArgumentsError {
-    #[error("arguments.no_libs")]
+    #[error("java_arguments.request_error(error={0})")]
+    /// An error happened with reqwest.
+    RequestError(#[from] reqwest::Error),
+
+    #[error("java_arguments.no_libs")]
     /// libs were not provided by the version manifest
     ///
     /// This usually happens when you forget to merge e.g A manifest that doesn't have any new libs with the base one
     NoLibrariesFound,
 
-    #[error("arguments.not_valid_utf8_path")]
+    #[error("java_arguments.not_valid_utf8_path")]
     /// A path is not valid UTF-8.
     NotValidUtf8Path,
 
-    #[error("launcher.io_error(error={0})")]
+    #[error("java_arguments.io_error(error={0})")]
     /// An error happened during an IO operation
     IoError(#[from] std::io::Error),
 
-    #[error("launcher.no_download_artifact_path")]
+    #[error("java_arguments.no_download_artifact_path")]
     /// a download artifact path was not provided by the version manifest
     ///
     /// This usually happens when you forget to merge e.g A manifest that doesn't have a modified
     /// download manifest path with the base one
     NoDownloadArtifactPath,
 
-    #[error("launcher.no_libs_path")]
+    #[error("java_arguments.no_libs_path")]
     /// No lib path was found
     ///
     /// this _shouldnt_ happen, but incase it does, this exists
     NoLibsPath,
 
-    #[error("launcher.unrecognised_os")]
+    #[error("java_arguments.unrecognised_os")]
     /// The OS in the arguments is not recognized. This shouldn't happen, if it does, file a bug
     UnrecognisedOs,
 
-    #[error("launcher.unrecognised_os_arch")]
+    #[error("java_arguments.unrecognised_os_arch")]
     /// The OS arch in the arguments is not recognized. This shouldn't happen, if it does, file a bug
     UnrecognisedOsArch,
 
-    #[error("launcher.no_dissalows")]
+    #[error("java_arguments.library_download_error(error={0})")]
+    /// An error happened during creating a library download from a maven url
+    LibraryDownloadError(#[from] CreateLibraryDownloadError),
+
+    #[error("java_arguments.no_dissalows")]
     /// No disallows are currently implemented. Please file a bug if this error happens
     NoDissalows,
 
-    #[error("launcher.no_custom_resolution")]
+    #[error("java_arguments.no_custom_resolution")]
     /// No custom resolution was provided
     ///
     /// this _should NEVER_ happen, but incase it does, this exists. Please file a bug report.
     NoCustomResolutionProvided,
 
-    #[error("launcher.unrecognised_game_argument(arg={0})")]
+    #[error("java_arguments.unrecognised_game_argument(arg={0})")]
     /// The launcher encountered a game argument it doesn't know about
     ///
     /// If this happens, report it as a bug
     UnrecognisedGameArgument(String),
 
-    #[error("launcher.unrecognised_allow_rule")]
+    #[error("java_arguments.unrecognised_allow_rule")]
     /// The launcher encountered an allow rule it doesn't know about
     ///
     /// If this happens, report it as a bug
     UnrecognisedAllowRule,
 
-    #[error("launcher.unrecognised_disallow_rule")]
+    #[error("java_arguments.unrecognised_disallow_rule")]
     /// The launcher encountered a disallow rule it doesn't know about
     ///
     /// If this happens, report it as a bug
@@ -189,4 +201,30 @@ pub enum SaveError {
     #[error("save.not_valid_utf8_path")]
     /// A path is not valid UTF-8.
     NotValidUtf8Path,
+}
+
+#[derive(Error, Debug)]
+pub enum MavenIdentifierParseError {
+    #[error("maven_parse.not_enough_args")]
+    /// There were not enough `:` in the string to properly parse it
+    NotEnoughArgs
+}
+
+#[derive(Error, Debug)]
+pub enum CreateLibraryDownloadError {
+    #[error("library_download.reqwest_error")]
+    /// An error happened with reqwest.
+    RequestError(#[from] reqwest::Error),
+
+    #[error("library_download.maven_parse_error(error={0})")]
+    /// An error happene during a maven parse
+    MavenParseError(#[from] MavenIdentifierParseError),
+
+    #[error("library_download.no_content_length_header")]
+    /// No content-length was provided from the HEAD request made to the maven server
+    NoContentLength,
+
+    #[error("library_download.cannot_parse_content_length")]
+    /// content-length is not a valid number 
+    CannotParseContentLength
 }

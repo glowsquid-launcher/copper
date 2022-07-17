@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut, Div};
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 
 use futures::stream::FuturesUnordered;
@@ -11,7 +12,8 @@ use tokio::task::{self, JoinHandle};
 use tokio_retry::{strategy::FixedInterval, Retry};
 use tracing::{debug, trace};
 
-use crate::errors::DownloadError;
+use crate::assets::structs::version::{LibraryDownloads, MappingsClass};
+use crate::errors::{CreateLibraryDownloadError, DownloadError, MavenIdentifierParseError};
 
 #[tracing::instrument]
 pub fn create_download_task(
@@ -51,6 +53,82 @@ pub fn create_download_task(
 }
 
 pub type ListOfResultHandles = FuturesUnordered<task::JoinHandle<Result<(), DownloadError>>>;
+
+// net.fabricmc:tiny-mappings-parser:0.3.0+build.17
+pub struct MavenIdentifier {
+    pub group_id: String,
+    pub artifact_id: String,
+    pub version: String,
+}
+
+impl FromStr for MavenIdentifier {
+    type Err = MavenIdentifierParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.split(":");
+        let group_id = parts
+            .next()
+            .ok_or(MavenIdentifierParseError::NotEnoughArgs)?
+            .to_string();
+        let artifact_id = parts
+            .next()
+            .ok_or(MavenIdentifierParseError::NotEnoughArgs)?
+            .to_string();
+        let version = parts
+            .next()
+            .ok_or(MavenIdentifierParseError::NotEnoughArgs)?
+            .to_string();
+
+        Ok(Self {
+            group_id,
+            artifact_id,
+            version,
+        })
+    }
+}
+
+pub async fn create_library_download(
+    url: &str,
+    name: &str,
+    client: Client,
+) -> Result<LibraryDownloads, CreateLibraryDownloadError> {
+    let identifier = MavenIdentifier::from_str(name)?;
+
+    let maven_url = format!(
+        "{}/{}/{}/{}-{}.jar",
+        identifier.group_id.replace(".", "/"),
+        identifier.artifact_id,
+        identifier.version,
+        identifier.artifact_id,
+        identifier.version,
+    );
+
+    let download_url = format!("{}{}", &url, &maven_url);
+
+    let size = client
+        .head(download_url.clone())
+        .send()
+        .await?
+        .content_length()
+        .ok_or(CreateLibraryDownloadError::NoContentLength)?;
+
+    let sha1 = client
+        .get(format!("{}.sha1", &download_url))
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    Ok(LibraryDownloads {
+        artifact: MappingsClass {
+            sha1,
+            size,
+            url: download_url,
+            path: Some(maven_url),
+        },
+        classifiers: None,
+    })
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct DownloadProgress {

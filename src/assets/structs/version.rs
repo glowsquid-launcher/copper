@@ -11,12 +11,14 @@ use tracing::{debug, trace};
 use crate::{
     errors::{DownloadError, VersionError},
     util::{
-        create_client, create_download_task, DownloadProgress, DownloadWatcher, ListOfResultHandles,
+        create_client, create_download_task, DownloadProgress, DownloadWatcher, ListOfResultHandles, create_library_download,
     },
 };
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Version {
+    pub inherits_from: Option<String>,
     pub arguments: Option<Arguments>,
     #[serde(rename = "assetIndex")]
     pub asset_index: Option<AssetIndex>,
@@ -44,6 +46,7 @@ impl Version {
     #[tracing::instrument]
     pub fn merge(self, lower: Self) -> Self {
         let mut merged = Self {
+            inherits_from: None,
             arguments: None,
             asset_index: None,
             assets: None,
@@ -81,6 +84,9 @@ impl Version {
 
             merged.arguments = Some(Arguments { game, jvm })
         }
+
+        // inheriting (overriding reverse)
+        merged.inherits_from = lower.inherits_from.or(self.inherits_from);
 
         // asset (overriding)
         merged.asset_index = self.asset_index.or(lower.asset_index);
@@ -166,6 +172,7 @@ impl Version {
     pub async fn download_libraries(
         &self,
         save_path: PathBuf,
+        client: reqwest::Client
     ) -> Result<ListOfResultHandles, VersionError> {
         debug!("Downloading libraries");
         let client = create_client();
@@ -188,16 +195,15 @@ impl Version {
             );
 
             // if we get here, then the library is allowed to be downloaded
+            let download = if let Some(down) = &library.downloads {
+                down.to_owned()
+            } else {
+                create_library_download(library.url.as_ref().unwrap(), &library.name, client.clone()).await?
+            };
 
-            Self::create_save_task(
-                &library.downloads.artifact,
-                &save_path,
-                library,
-                &tasks,
-                &client,
-            );
+            Self::create_save_task(&download.artifact, &save_path, library, &tasks, &client);
 
-            if let Some(classifiers) = &library.downloads.classifiers {
+            if let Some(classifiers) = &download.classifiers {
                 match std::env::consts::OS {
                     "windows" => {
                         if let Some(windows) = &classifiers.natives_windows {
@@ -254,6 +260,7 @@ impl Version {
     pub async fn start_download_libraries(
         &self,
         save_path: PathBuf,
+        client: reqwest::Client
     ) -> Result<DownloadWatcher, VersionError> {
         trace!("Starting download libraries");
         trace!("Creating progress watcher");
@@ -263,7 +270,7 @@ impl Version {
         });
 
         trace!("Creating download tasks");
-        let tasks = self.download_libraries(save_path).await?;
+        let tasks = self.download_libraries(save_path, client).await?;
         trace!("Starting download tasks");
         let download_task = task::spawn(Self::run_downloads(tasks, progress_sender));
 
@@ -439,10 +446,10 @@ pub struct VersionInfoDownloads {
     pub server_mappings: MappingsClass,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MappingsClass {
     pub sha1: String,
-    pub size: i64,
+    pub size: u64,
     pub url: String,
     pub path: Option<String>,
 }
@@ -456,20 +463,21 @@ pub struct JavaVersion {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Library {
-    pub downloads: LibraryDownloads,
+    pub downloads: Option<LibraryDownloads>,
+    pub url: Option<String>,
     pub name: String,
     pub rules: Option<Vec<LibraryRule>>,
     pub natives: Option<Natives>,
     pub extract: Option<Extract>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LibraryDownloads {
     pub artifact: MappingsClass,
     pub classifiers: Option<Classifiers>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Classifiers {
     pub javadoc: Option<MappingsClass>,
     #[serde(rename = "natives-linux")]

@@ -2,19 +2,19 @@ use super::version::Version as VersionManifest;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, trace};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LauncherMeta {
     pub latest: Latest,
     pub versions: Vec<Version>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Latest {
     pub release: String,
     pub snapshot: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Version {
     pub id: String,
     #[serde(rename = "type")]
@@ -25,7 +25,7 @@ pub struct Version {
     pub release_time: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum Type {
     #[serde(rename = "old_alpha")]
     OldAlpha,
