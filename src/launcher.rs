@@ -74,7 +74,7 @@ impl Launcher {
     pub async fn launch(
         &self,
         version_manifest: Option<Version>,
-        client: reqwest::Client
+        client: reqwest::Client,
     ) -> Result<GameOutput, LauncherError> {
         trace!("Launching minecraft");
 
@@ -132,26 +132,34 @@ impl Launcher {
     async fn parse_java_arguments(
         &self,
         version_manifest: &Version,
-        client: reqwest::Client
+        client: reqwest::Client,
     ) -> Result<Vec<String>, LauncherError> {
         let mut args: Vec<String> = vec![];
 
-        for arg in &version_manifest
+        for arg in version_manifest
             .arguments
             .as_ref()
             .ok_or(LauncherError::NoArgs)?
             .jvm
+            .as_ref()
+            .ok_or(LauncherError::NoArgs)?
         {
             let formatted_arg = match arg {
                 assets::structs::version::JvmElement::JvmClass(argument) => {
-                    JavaArguments::parse_class_argument(self, version_manifest, argument, client.clone()).await?
+                    JavaArguments::parse_class_argument(
+                        self,
+                        version_manifest,
+                        argument,
+                        client.clone(),
+                    )
+                    .await?
                 }
                 assets::structs::version::JvmElement::String(argument) => Some(
                     JavaArguments::parse_string_argument(
                         self,
                         version_manifest,
                         argument.to_string(),
-                        client.clone()
+                        client.clone(),
                     )
                     .await?,
                 ),
@@ -172,11 +180,13 @@ impl Launcher {
     ) -> Result<Vec<String>, LauncherError> {
         let mut args: Vec<String> = vec![];
 
-        for arg in &version_manifest
+        for arg in version_manifest
             .arguments
             .as_ref()
             .ok_or(LauncherError::NoArgs)?
             .game
+            .as_ref()
+            .ok_or(LauncherError::NoArgs)?
         {
             let formatted_arg = match arg {
                 assets::structs::version::GameElement::GameClass(argument) => {

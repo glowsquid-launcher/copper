@@ -67,23 +67,28 @@ impl Version {
         // arguments (vector merging)
         if let Some(arguments) = lower.arguments {
             let current_arguments = self.arguments.unwrap_or(Arguments {
-                game: vec![],
-                jvm: vec![],
+                game: Some(vec![]),
+                jvm: Some(vec![]),
             });
 
             let jvm = current_arguments
                 .jvm
+                .unwrap_or(vec![])
                 .into_iter()
-                .chain(arguments.jvm.into_iter())
+                .chain(arguments.jvm.unwrap_or(vec![]).into_iter())
                 .collect();
 
             let game = current_arguments
                 .game
+                .unwrap_or(vec![])
                 .into_iter()
-                .chain(arguments.game.into_iter())
+                .chain(arguments.game.unwrap_or(vec![]))
                 .collect();
 
-            merged.arguments = Some(Arguments { game, jvm })
+            merged.arguments = Some(Arguments {
+                game: Some(game),
+                jvm: Some(jvm),
+            })
         }
 
         // inheriting (overriding reverse)
@@ -393,8 +398,8 @@ impl Version {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Arguments {
-    pub game: Vec<GameElement>,
-    pub jvm: Vec<JvmElement>,
+    pub game: Option<Vec<GameElement>>,
+    pub jvm: Option<Vec<JvmElement>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
