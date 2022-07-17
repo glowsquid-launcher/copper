@@ -11,7 +11,8 @@ use tracing::{debug, trace};
 use crate::{
     errors::{DownloadError, VersionError},
     util::{
-        create_client, create_download_task, DownloadProgress, DownloadWatcher, ListOfResultHandles, create_library_download,
+        create_client, create_download_task, create_library_download, DownloadProgress,
+        DownloadWatcher, ListOfResultHandles,
     },
 };
 
@@ -172,7 +173,7 @@ impl Version {
     pub async fn download_libraries(
         &self,
         save_path: PathBuf,
-        client: reqwest::Client
+        client: reqwest::Client,
     ) -> Result<ListOfResultHandles, VersionError> {
         debug!("Downloading libraries");
         let client = create_client();
@@ -198,7 +199,12 @@ impl Version {
             let download = if let Some(down) = &library.downloads {
                 down.to_owned()
             } else {
-                create_library_download(library.url.as_ref().unwrap(), &library.name, client.clone()).await?
+                create_library_download(
+                    library.url.as_ref().unwrap(),
+                    &library.name,
+                    client.clone(),
+                )
+                .await?
             };
 
             Self::create_save_task(&download.artifact, &save_path, library, &tasks, &client);
@@ -260,7 +266,7 @@ impl Version {
     pub async fn start_download_libraries(
         &self,
         save_path: PathBuf,
-        client: reqwest::Client
+        client: reqwest::Client,
     ) -> Result<DownloadWatcher, VersionError> {
         trace!("Starting download libraries");
         trace!("Creating progress watcher");
