@@ -21,6 +21,7 @@
           # devtools
           rnix-lsp
           rust-analyzer
+          jdk17
         ];
       };
     });

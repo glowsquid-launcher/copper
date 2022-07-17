@@ -76,6 +76,7 @@ pub async fn launch_minecraft(
         .launch(None, create_client())
         .await
         .map_err(|err| anyhow!("Failed to launch minecraft: {}", err))?;
+
     let mut out_reader = game_output.stdout;
     let mut err_reader = game_output.stderr;
     let mut out_buf = vec![];
