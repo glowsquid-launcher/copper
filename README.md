@@ -13,7 +13,9 @@ This is meant to be a mid-level structural launcher where everything is done sep
 You don't launch and let it download the assets. You first download the assets and then launch.
 This is meant to be used as a library, but a standalone is also in the works (mainly for testing)
 
-**MICROSOFT ONLY** becauce mojang is being removed in the future. Migrate now
+**MICROSOFT ONLY** becauce mojang is being removed in the future. Migrate now _or else_
+
+Currently, this is being used as the launcher backend for the glowsquid launcher.
 
 ## Features
 - [x] can actually downloda minecraft
