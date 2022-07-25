@@ -8,6 +8,7 @@
 [![forthebadge](https://forthebadge.com/images/badges/made-with-rust.svg)](https://forthebadge.com)
 [![forthebadge](https://forthebadge.com/images/badges/mom-made-pizza-rolls.svg)](https://forthebadge.com)
 [![wakatime](https://wakatime.com/badge/github/glowsquid-launcher/minecraft-rs.svg?style=for-the-badge)](https://wakatime.com/badge/github/glowsquid-launcher/minecraft-rs)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fglowsquid-launcher%2Fcopper.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fglowsquid-launcher%2Fcopper?ref=badge_shield)
 
 This is meant to be a mid-level structural launcher where everything is done separately.
 You don't launch and let it download the assets. You first download the assets and then launch.
@@ -31,3 +32,7 @@ Testing basically works by:
 - see if it makes sense
 
 What makes sense should make sense for the launcher
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fglowsquid-launcher%2Fcopper.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fglowsquid-launcher%2Fcopper?ref=badge_large)
